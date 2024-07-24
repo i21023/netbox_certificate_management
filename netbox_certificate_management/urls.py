@@ -4,6 +4,7 @@ from netbox.views.generic import ObjectChangeLogView
 
 urlpatterns = [
     path('certificates/', views.CertificateListView.as_view(), name='certificate_list'),
+    path('certificates/upload/', views.CertificateUploadView.as_view(), name='certificate_upload'),
     path('certificates/add/', views.CertificateEditView.as_view(), name='certificate_add'),
     path('certificates/<int:pk>/', views.CertificateView.as_view(), name='certificate'),
     path('certificates/<int:pk>/edit/', views.CertificateEditView.as_view(), name='certificate_edit'),
