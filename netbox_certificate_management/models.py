@@ -3,19 +3,22 @@ from netbox.models import NetBoxModel
 from django.urls import reverse
 
 class Certificate(NetBoxModel):
-    name=models.CharField(max_length=100)
-    description=models.TextField(blank=True)
+    serial_number=models.BinaryField(max_length=20)
+    signature_algorithm=models.CharField()
+    subject=models.CharField()
     public_key=models.TextField()
-    issuer=models.CharField(max_length=100)
-    valid_from=models.DateTimeField()
-    valid_to=models.DateTimeField()
+    issuer_name=models.CharField()
+    issuer=models.ForeignKey('self', blank=True, null=True, default=None, on_delete=models.SET_NULL)
+    not_valid_before=models.DateTimeField()
+    not_valid_after=models.DateTimeField()
     devices=models.ManyToManyField('dcim.Device', blank=True)
+    comments=models.TextField(blank=True)
 
     class Meta:
-        ordering = ('valid_to',)
+        ordering = ('not_valid_after',)
 
     def __str__(self):
-        return self.name
+        return self.subject
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_certificate_management:certificate', args=[self.pk])

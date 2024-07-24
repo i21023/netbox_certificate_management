@@ -2,6 +2,7 @@ setup.py
 netbox_certificate_management/__init__.py
 netbox_certificate_management/forms.py
 netbox_certificate_management/models.py
+netbox_certificate_management/navigation.py
 netbox_certificate_management/tables.py
 netbox_certificate_management/urls.py
 netbox_certificate_management/views.py
@@ -10,5 +11,10 @@ netbox_certificate_management.egg-info/SOURCES.txt
 netbox_certificate_management.egg-info/dependency_links.txt
 netbox_certificate_management.egg-info/not-zip-safe
 netbox_certificate_management.egg-info/top_level.txt
+netbox_certificate_management/api/__init__.py
+netbox_certificate_management/api/serializers.py
+netbox_certificate_management/api/urls.py
+netbox_certificate_management/api/views.py
 netbox_certificate_management/migrations/0001_initial.py
+netbox_certificate_management/migrations/0002_remove_certificate_device_certificate_devices.py
 netbox_certificate_management/migrations/__init__.py
