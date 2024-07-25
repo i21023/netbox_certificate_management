@@ -1,26 +1,38 @@
 from netbox.views import generic
 from . import forms, models, tables, parser
 from dcim.models import Device
+from dcim.tables import DeviceTable
 from utilities.views import ViewTab, register_model_view
 from django.shortcuts import render, get_object_or_404
 from django.db.models import F, ExpressionWrapper, fields
+from django.db.models.functions import Cast, ExtractDay
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic.edit import FormView
-from datetime import datetime, timezone 
+from datetime import datetime, timezone, timedelta
+
+def return_days_valid():
+    return ExtractDay(F('not_valid_after') - datetime.now(timezone.utc))
 
 class CertificateView(generic.ObjectView):
     queryset = models.Certificate.objects.all()
+    
+    def get_extra_context(self, request, instance):
+        print(instance)
+        print(request)
+        table = DeviceTable(instance.devices.all())
+        table.configure(request)
+
+        return {
+            'related_devices': table
+        }
 
 class CertificateListView(generic.ObjectListView):
     queryset = models.Certificate.objects.annotate(
-        valid_days_left=ExpressionWrapper(
-            F('not_valid_after') - datetime.now(timezone.utc),
-            output_field=fields.DurationField()
-        )
+        valid_days_left=return_days_valid()
     )
-    #template_name = 'generic/object_list.html'
     table = tables.CertificateTable
+
 
 class CertificateEditView(generic.ObjectEditView):
     queryset = models.Certificate.objects.all()
@@ -31,7 +43,7 @@ class CertificateDeleteView(generic.ObjectDeleteView):
 
 @register_model_view(Device, name='certificates')
 class DeviceCertificatesView(generic.ObjectChildrenView):
-    queryset=Device.objects.all().prefetch_related('certificate_set')
+    queryset = Device.objects.all().prefetch_related('certificate_set')
     child_model=models.Certificate
     table=tables.CertificateTable
     template_name='netbox_certificate_management/device_certificates.html'
@@ -42,12 +54,9 @@ class DeviceCertificatesView(generic.ObjectChildrenView):
     )
 
     def get_children(self, request, parent):
-        return parent.certificate_set.all()
-    # def get(self, request, pk):
-    #     device = get_object_or_404(Device, pk=pk)
-    #     certificates = device.certificate_set.all()
-    #     table = tables.CertificateTable(certificates)
-    #     return render(request, 'netbox_certificate_management/device_certificates.html', {'table': table})
+        return parent.certificate_set.annotate(
+            valid_days_left=return_days_valid()
+        )
 
 class CertificateUploadView(FormView):
     template_name = 'netbox_certificate_management/upload_certificate.html'

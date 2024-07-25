@@ -7,6 +7,12 @@ from .models import Certificate
 class CertificateTable(NetBoxTable):
 
     valid_days_left=tables.Column()
+    issuer= tables.Column(
+        linkify=True
+    )
+    subject=tables.Column(
+        linkify=True
+    )
 
     class Meta:
         model = Certificate

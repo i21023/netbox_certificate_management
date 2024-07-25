@@ -11,5 +11,5 @@ class CertificateSerializer(NetBoxModelSerializer):
     class Meta:
         model = Certificate
         fields = (
-            'id', 'url', 'display', 'name', 'description', 'public_key', 'issuer', 'valid_from', 'valid_to', 'device', 'custom_fields', 'created',
+            'pk', 'url', 'subject', 'public_key', 'issuer_name', 'issuer', 'not_valid_before', 'not_valid_after', 'devices', 'comments'
         )
