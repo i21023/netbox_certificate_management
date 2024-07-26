@@ -1,18 +1,22 @@
 from netbox.views import generic
+from netbox.views.generic.utils import get_prerequisite_model
 from . import forms, models, tables, parser
 from dcim.models import Device
 from dcim.tables import DeviceTable
 from utilities.views import ViewTab, register_model_view
-from django.shortcuts import render, get_object_or_404
+from utilities.querydict import normalize_querydict
+from utilities.forms import restrict_form_fields
+from utilities.htmx import htmx_partial
+from django.shortcuts import redirect, render, get_object_or_404
 from django.db.models import F, ExpressionWrapper, fields
 from django.db.models.functions import Cast, ExtractDay
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic.edit import FormView
 from datetime import datetime, timezone, timedelta
+from .utils import return_days_valid
 
-def return_days_valid():
-    return ExtractDay(F('not_valid_after') - datetime.now(timezone.utc))
+
 
 class CertificateView(generic.ObjectView):
     queryset = models.Certificate.objects.all()
@@ -37,6 +41,47 @@ class CertificateListView(generic.ObjectListView):
 class CertificateEditView(generic.ObjectEditView):
     queryset = models.Certificate.objects.all()
     form = forms.CertificateForm
+
+    def get_initial(self):
+        initial = {}
+        parsed_data=self.request.session.pop('parsed_certificate', None)
+        print('parsed_data:', parsed_data)
+        if(parsed_data):
+            initial.update(parsed_data)
+        return initial
+    
+    #this method is basically the same as in the ObjectEditView class, but it is overridden here to prepopulate the form with session data if a pem file is uploaded
+    def get(self, request, *args, **kwargs):
+        """
+        GET request handler.
+
+        Args:
+            request: The current request
+        """
+        obj = self.get_object(**kwargs)
+        obj = self.alter_object(obj, request, args, kwargs)
+        model = self.queryset.model
+
+        # this code is added to prepopulate the form with session data if a pem file is uploaded
+        initial_data = self.get_initial()
+        initial_data.update(normalize_querydict(request.GET))
+        form = self.form(instance=obj, initial=initial_data)
+        restrict_form_fields(form, request.user)
+
+        # If this is an HTMX request, return only the rendered form HTML
+        if htmx_partial(request):
+            return render(request, self.htmx_template_name, {
+                'form': form,
+            })
+
+        return render(request, self.template_name, {
+            'model': model,
+            'object': obj,
+            'form': form,
+            'return_url': self.get_return_url(request, obj),
+            'prerequisite_model': get_prerequisite_model(self.queryset),
+            **self.get_extra_context(request, obj),
+        })
 
 class CertificateDeleteView(generic.ObjectDeleteView):
     queryset = models.Certificate.objects.all()
@@ -69,9 +114,12 @@ class CertificateUploadView(FormView):
         pem_data = pem_file.read()
         
         try:
-            print(parser.parse_certificate(pem_data))             
+            parsed_data = parser.parse_certificate(pem_data)
+            self.request.session['parsed_certificate'] = parsed_data           
             messages.success(self.request, 'Certificate uploaded and parsed successfully.')
+            return redirect('plugins:netbox_certificate_management:certificate_add')
         except Exception as e:
+            print(e)
             messages.error(self.request, f'Error parsing certificate: {e}')
             return super().form_invalid(form)
 
