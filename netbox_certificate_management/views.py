@@ -64,13 +64,12 @@ class CertificateUploadView(FormView):
     success_url = reverse_lazy('plugins:netbox_certificate_management:certificate_list')  # Redirect after successful upload
 
     def form_valid(self, form):
-        messages.info(self.request, 'Certificate upload in progress...')
-        pem_file = form.cleaned_data['pem_file']
+        print('Certificate upload in progress...')
+        pem_file = form.cleaned_data['file']
         pem_data = pem_file.read()
         
         try:
-            parser.parse_certificate(pem_data)             
-
+            print(parser.parse_certificate(pem_data))             
             messages.success(self.request, 'Certificate uploaded and parsed successfully.')
         except Exception as e:
             messages.error(self.request, f'Error parsing certificate: {e}')
