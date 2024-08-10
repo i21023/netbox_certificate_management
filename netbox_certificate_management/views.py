@@ -4,6 +4,8 @@ from types import NoneType
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from netbox.views import generic
+from dcim.tables import DeviceTable
+from virtualization.tables import VirtualMachineTable
 from openid.fetchers import fetch
 
 from . import forms, models, tables
@@ -34,6 +36,19 @@ from django.db.models import Case, When, Value, IntegerField
 class CertificateView(generic.ObjectView):
     queryset=models.Certificate.objects.all()
     template_name='netbox_certificate_management/certificate.html'
+
+    def get_extra_context(self, request, instance):
+        print(instance)
+        print(request)
+        device_table = DeviceTable(instance.devices.all())
+        vm_table = VirtualMachineTable(instance.virtual_machines.all())
+        device_table.configure(request)
+        vm_table.configure(request)
+
+        return {
+            'related_devices': device_table,
+            'related_vms': vm_table
+        }
 
 
 class CertificateListView(generic.ObjectListView):

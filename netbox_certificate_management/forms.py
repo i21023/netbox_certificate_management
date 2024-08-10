@@ -9,8 +9,8 @@ from utilities.forms.widgets import DateTimePicker
 
 class CertificateForm(NetBoxModelForm):
 
-    not_valid_before=forms.DateTimeField(widget=DateTimePicker())
-    not_valid_after=forms.DateTimeField(widget=DateTimePicker())
+    #not_valid_before=forms.DateTimeField(widget=DateTimePicker())
+    #not_valid_after=forms.DateTimeField(widget=DateTimePicker())
     devices = DynamicModelMultipleChoiceField(
         queryset=Device.objects.all(),
         required=False
