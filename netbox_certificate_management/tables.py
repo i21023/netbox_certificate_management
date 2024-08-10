@@ -2,9 +2,15 @@ import django_tables2 as tables
 from django_tables2.utils import Accessor
 from django.utils.translation import gettext_lazy as _
 
-from netbox.tables import NetBoxTable, ColoredLabelColumn, ColorColumn, TemplateColumn
+from netbox.tables import NetBoxTable, ColoredLabelColumn, ColorColumn, TemplateColumn, columns
 from .models import Certificate
 from .columns import ColorStatusColumn
+
+DEVICES = """
+{% for dev in value.all %}
+    <a href="{% url 'dcim:device' pk=dev.pk %}">{{ dev }}</a>{% if not forloop.last %}<br />{% endif %}
+{% endfor %}
+"""
 
 CERTIFICATE_LINK = """
 {% if record.pk %}
@@ -38,6 +44,16 @@ class CertificateTable(NetBoxTable):
     depth=tables.Column(
         accessor=Accessor('level'),
         verbose_name=_('Depth')
+    )
+    devices = columns.TemplateColumn(
+        template_code=DEVICES,
+        orderable=False,
+        verbose_name=_('Devices')
+    )
+    virtual_machines = columns.TemplateColumn(
+        template_code=DEVICES,
+        orderable=False,
+        verbose_name=_('Virtual Machines')
     )
 
     class Meta(NetBoxTable.Meta):

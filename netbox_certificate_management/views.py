@@ -49,12 +49,6 @@ class CertificateEditView(generic.ObjectEditView):
     form = forms.CertificateForm
     default_return_url = 'plugins:netbox_certificate_management:certificate_list'
 
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        # Add a custom cancel URL to the form
-        form.cancel_url = reverse('plugin_list_view')  # Replace with the actual URL name for your list view
-        return form
-
     def get(self, request, *args, **kwargs):
         """
         GET request handler.
@@ -75,13 +69,14 @@ class CertificateEditView(generic.ObjectEditView):
         initial_data = {}
         if passed_fields:
             initial_data.update(passed_fields)
-        else:
+        elif not obj:
             return redirect('plugins:netbox_certificate_management:certificate_list')
 
         initial_data.update(normalize_querydict(request.GET))
         form = self.form(instance=obj, initial=initial_data)
         restrict_form_fields(form, request.user)
-        disable_pre_populated_fields(form, passed_fields)
+        if not obj:
+            disable_pre_populated_fields(form, passed_fields)
 
         form.fields['subject'].widget.attrs['readonly'] = 'disabled'
 
@@ -132,6 +127,7 @@ class CertificateEditView(generic.ObjectEditView):
                         obj.file = file_binary
 
                     obj.save()
+                    form.save_m2m()
 
                     # Check that the new object conforms with any assigned object-level permissions
                     if not self.queryset.filter(pk=obj.pk).exists():
@@ -197,37 +193,28 @@ def upload_file(request):
     password = request.POST.get('password')
 
     if not file:
-        print("2")
         messages.error(request, 'No file uploaded')
         return JsonResponse({'error': 'No file uploaded'}, status=400)
 
-    print(password)
     #the filename needs to be checked again here because there is no way to check if the password send by ajax was 'null' or null (not provided, i.e. no pkcs12 format)
     if not file.name.endswith('.p12') and not file.name.endswith('.pfx'):
         password = None
 
-        print(password)
-
     #handle other cert file formats (pem, der)
-    else:
-        try:
-            print("3")
-            parsed_cert_data, cert_b64 = parse_certificate(cert=file.read(), password=password)
-        except Exception as e:
-            print("4")
-            print(e)
-            messages.error(request, f'Error parsing certificate: {e}')
-            return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
+    try:
+        parsed_cert_data, cert_b64 = parse_certificate(cert=file.read(), password=password)
+    except Exception as e:
+        return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
 
-        # Process the file and password as needed
-        # Save file data to session or database, etc.
-        request.session['parsed_certificate'] = parsed_cert_data
-        request.session['uploaded_file_binary'] = cert_b64
+    # Process the file and password as needed
+    # Save file data to session or database, etc.
+    request.session['parsed_certificate'] = parsed_cert_data
+    request.session['uploaded_file_binary'] = cert_b64
 
-        # Generate the URL for the EditFormView
-        redirect_url = reverse('plugins:netbox_certificate_management:certificate_add')  # Replace with the correct URL pattern name
+    # Generate the URL for the EditFormView
+    redirect_url = reverse('plugins:netbox_certificate_management:certificate_add')  # Replace with the correct URL pattern name
 
-        return JsonResponse({'redirect': redirect_url})
+    return JsonResponse({'redirect': redirect_url})
 
 
 def download_file(request, pk):
