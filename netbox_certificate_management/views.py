@@ -1,74 +1,90 @@
+import json
+from types import NoneType
+
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 from netbox.views import generic
-from netbox.views.generic.utils import get_prerequisite_model
-from . import forms, models, tables, parser
-from dcim.models import Device
-from dcim.tables import DeviceTable
-from utilities.views import ViewTab, register_model_view
+from openid.fetchers import fetch
+
+from . import forms, models, tables
+from .tables import CertificateTable
+from .utils import return_days_valid, get_hierarchical_order
+from django.http import HttpResponse, JsonResponse
+from .parser import parse_certificate, convert_pem_to_der
 from utilities.querydict import normalize_querydict
 from utilities.forms import restrict_form_fields
 from utilities.htmx import htmx_partial
+from netbox.views.generic.utils import get_prerequisite_model
 from django.shortcuts import redirect, render, get_object_or_404
-from django.db.models import F, ExpressionWrapper, fields
-from django.db.models.functions import Cast, ExtractDay
 from django.contrib import messages
-from django.urls import reverse_lazy
-from django.views.generic.edit import FormView
-from datetime import datetime, timezone, timedelta
-from .utils import return_days_valid
+from django.db import transaction
+import logging
+from utilities.exceptions import AbortRequest, PermissionsViolation
+from django.utils.safestring import mark_safe
+from django.utils.html import escape
+from utilities.querydict import normalize_querydict, prepare_cloned_fields
+from extras.signals import clear_events
+import base64
+from django_tables2 import RequestConfig
+from django.db.models import Case, When, Value, IntegerField
+
 
 
 
 class CertificateView(generic.ObjectView):
-    queryset = models.Certificate.objects.all()
-    
-    def get_extra_context(self, request, instance):
-        print(instance)
-        print(request)
-        table = DeviceTable(instance.devices.all())
-        table.configure(request)
+    queryset=models.Certificate.objects.all()
+    template_name='netbox_certificate_management/certificate.html'
 
-        return {
-            'related_devices': table
-        }
 
 class CertificateListView(generic.ObjectListView):
-    queryset = models.Certificate.objects.annotate(
+    queryset=models.Certificate.objects.annotate(
         valid_days_left=return_days_valid()
-    )
-    table = tables.CertificateTable
+    ).order_by("tree_id", "lft")
+    table=tables.CertificateTable
+    template_name='netbox_certificate_management/certificate_list.html'
 
 
 class CertificateEditView(generic.ObjectEditView):
     queryset = models.Certificate.objects.all()
     form = forms.CertificateForm
+    default_return_url = 'plugins:netbox_certificate_management:certificate_list'
 
-    def get_initial(self):
-        initial = {}
-        parsed_data=self.request.session.pop('parsed_certificate', None)
-        print('parsed_data:', parsed_data)
-        if(parsed_data):
-            initial.update(parsed_data)
-        return initial
-    
-    #this method is basically the same as in the ObjectEditView class, but it is overridden here to prepopulate the form with session data if a pem file is uploaded
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Add a custom cancel URL to the form
+        form.cancel_url = reverse('plugin_list_view')  # Replace with the actual URL name for your list view
+        return form
+
     def get(self, request, *args, **kwargs):
         """
         GET request handler.
-
-        Args:
-            request: The current request
         """
         obj = self.get_object(**kwargs)
         obj = self.alter_object(obj, request, args, kwargs)
         model = self.queryset.model
 
-        # this code is added to prepopulate the form with session data if a pem file is uploaded
-        initial_data = self.get_initial()
+        try:
+            passed_fields = request.session.pop('parsed_certificate')
+
+            issuer_reference = models.Certificate.objects.filter(subject=passed_fields['issuer_name']).first()
+            if issuer_reference:
+                passed_fields['issuer'] = issuer_reference
+        except KeyError:
+            passed_fields = None
+
+        initial_data = {}
+        if passed_fields:
+            initial_data.update(passed_fields)
+        else:
+            return redirect('plugins:netbox_certificate_management:certificate_list')
+
         initial_data.update(normalize_querydict(request.GET))
         form = self.form(instance=obj, initial=initial_data)
         restrict_form_fields(form, request.user)
+        disable_pre_populated_fields(form, passed_fields)
 
-        # If this is an HTMX request, return only the rendered form HTML
+        form.fields['subject'].widget.attrs['readonly'] = 'disabled'
+
         if htmx_partial(request):
             return render(request, self.htmx_template_name, {
                 'form': form,
@@ -83,49 +99,153 @@ class CertificateEditView(generic.ObjectEditView):
             **self.get_extra_context(request, obj),
         })
 
+    def post(self, request, *args, **kwargs):
+        """
+        POST request handler.
+
+        Args:
+            request: The current request
+        """
+        logger = logging.getLogger('netbox.views.ObjectEditView')
+        obj = self.get_object(**kwargs)
+
+        # Take a snapshot for change logging (if editing an existing object)
+        if obj.pk and hasattr(obj, 'snapshot'):
+            obj.snapshot()
+
+        obj = self.alter_object(obj, request, args, kwargs)
+
+        form = self.form(data=request.POST, files=request.FILES, instance=obj)
+        restrict_form_fields(form, request.user)
+
+        if form.is_valid():
+            logger.debug("Form validation was successful")
+
+            try:
+                with transaction.atomic():
+                    object_created = form.instance.pk is None
+                    obj = form.save(commit=False)
+
+                    file_base64 = request.session.pop('uploaded_file_binary', None)
+                    if file_base64:
+                        file_binary = base64.b64decode(file_base64)
+                        obj.file = file_binary
+
+                    obj.save()
+
+                    # Check that the new object conforms with any assigned object-level permissions
+                    if not self.queryset.filter(pk=obj.pk).exists():
+                        raise PermissionsViolation()
+
+                msg = '{} {}'.format(
+                    'Created' if object_created else 'Modified',
+                    self.queryset.model._meta.verbose_name
+                )
+                logger.info(f"{msg} {obj} (PK: {obj.pk})")
+                if hasattr(obj, 'get_absolute_url'):
+                    msg = mark_safe(f'{msg} <a href="{obj.get_absolute_url()}">{escape(obj)}</a>')
+                else:
+                    msg = f'{msg} {obj}'
+                messages.success(request, msg)
+
+                if '_addanother' in request.POST:
+                    redirect_url = request.path
+
+                    # If cloning is supported, pre-populate a new instance of the form
+                    params = prepare_cloned_fields(obj)
+                    params.update(self.get_extra_addanother_params(request))
+                    if params:
+                        if 'return_url' in request.GET:
+                            params['return_url'] = request.GET.get('return_url')
+                        redirect_url += f"?{params.urlencode()}"
+
+                    return redirect(redirect_url)
+
+                return_url = self.get_return_url(request, obj)
+
+                return redirect(return_url)
+
+            except (AbortRequest, PermissionsViolation) as e:
+                logger.debug(e.message)
+                form.add_error(None, e.message)
+                clear_events.send(sender=self)
+
+        else:
+            logger.debug("Form validation failed")
+
+        return render(request, self.template_name, {
+            'object': obj,
+            'form': form,
+            'return_url': self.get_return_url(request, obj),
+            **self.get_extra_context(request, obj),
+        })
+
+def disable_pre_populated_fields(form, passed_fields):
+    for field in passed_fields:
+        form.fields[field].widget.attrs['readonly'] = True
+
+
+
 class CertificateDeleteView(generic.ObjectDeleteView):
-    queryset = models.Certificate.objects.all()
+    queryset=models.Certificate.objects.all()
 
-@register_model_view(Device, name='certificates')
-class DeviceCertificatesView(generic.ObjectChildrenView):
-    queryset = Device.objects.all().prefetch_related('certificate_set')
-    child_model=models.Certificate
-    table=tables.CertificateTable
-    template_name='netbox_certificate_management/device_certificates.html'
-    hide_if_empty=True
-    tab = ViewTab(
-        label='Certificates',
-        permission='dcim.view_device'
-    )
 
-    def get_children(self, request, parent):
-        return parent.certificate_set.annotate(
-            valid_days_left=return_days_valid()
-        )
+@require_POST
+def upload_file(request):
+    file = request.FILES.get('file')
+    test = request.POST.get('password')
+    password = request.POST.get('password')
 
-class CertificateUploadView(FormView):
-    template_name = 'netbox_certificate_management/upload_certificate.html'
-    form_class = forms.CertificateUploadForm
-    success_url = reverse_lazy('plugins:netbox_certificate_management:certificate_list')  # Redirect after successful upload
+    if not file:
+        print("2")
+        messages.error(request, 'No file uploaded')
+        return JsonResponse({'error': 'No file uploaded'}, status=400)
 
-    def form_valid(self, form):
-        print('Certificate upload in progress...')
-        pem_file = form.cleaned_data['file']
-        pem_data = pem_file.read()
-        
+    print(password)
+    #the filename needs to be checked again here because there is no way to check if the password send by ajax was 'null' or null (not provided, i.e. no pkcs12 format)
+    if not file.name.endswith('.p12') and not file.name.endswith('.pfx'):
+        password = None
+
+        print(password)
+
+    #handle other cert file formats (pem, der)
+    else:
         try:
-            parsed_data = parser.parse_certificate(pem_data)
-            self.request.session['parsed_certificate'] = parsed_data           
-            messages.success(self.request, 'Certificate uploaded and parsed successfully.')
-            return redirect('plugins:netbox_certificate_management:certificate_add')
+            print("3")
+            parsed_cert_data, cert_b64 = parse_certificate(cert=file.read(), password=password)
         except Exception as e:
+            print("4")
             print(e)
-            messages.error(self.request, f'Error parsing certificate: {e}')
-            return super().form_invalid(form)
+            messages.error(request, f'Error parsing certificate: {e}')
+            return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
 
-        return super().form_valid(form)
+        # Process the file and password as needed
+        # Save file data to session or database, etc.
+        request.session['parsed_certificate'] = parsed_cert_data
+        request.session['uploaded_file_binary'] = cert_b64
 
-    def form_invalid(self, form):
-        messages.error(self.request, 'There was an error with the file upload.')
-        return super().form_invalid(form)
-    
+        # Generate the URL for the EditFormView
+        redirect_url = reverse('plugins:netbox_certificate_management:certificate_add')  # Replace with the correct URL pattern name
+
+        return JsonResponse({'redirect': redirect_url})
+
+
+def download_file(request, pk):
+    # Get the object by primary key (or however you identify it)
+    obj = get_object_or_404(models.Certificate, pk=pk)
+
+    # Check if the user wants to convert the file to DER format
+    convert_to_der = request.GET.get('convert_to_der', 'False') == 'True'
+
+    # Ensure there is a file to download
+    if obj.file:
+        #if user wants to download in DER format, convert the file to DER
+        if convert_to_der:
+            response = HttpResponse(convert_pem_to_der(obj.file), content_type='application/x-x509-ca-cert')
+            response['Content-Disposition'] = f'attachment; filename="{obj.subject}.der"'
+            return response
+        response = HttpResponse(obj.file, content_type='application/x-pem-file')
+        response['Content-Disposition'] = f'attachment; filename="{obj.subject}.pem"'
+        return response
+    else:
+        return HttpResponse("No file found", status=404)
