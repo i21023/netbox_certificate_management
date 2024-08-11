@@ -35,16 +35,32 @@
         <div class="card-body">
           <table class="table table-hover attr-table">
             <tr>
-              <th scope="row">Subject</th>
+              <th scope="row">{% trans "subject" %}</th>
               <td>{{ object.subject }}</td>
             </tr>
             <tr>
-              <th scope="row">Default Action</th>
-              <td>{{ object.get_default_action_display }}</td>
+              <th scope="row">{% trans "issuer" %}</th>
+              {% if object.issuer %}
+              <td>{{ object.issuer|linkify }}</td>
+              {% else %}
+              <td>{{ object.issuer_name }}</td>
+              {% endif %}
             </tr>
             <tr>
-              <th scope="row">Rules</th>
-              <td></td>
+              <th scope="row">{% trans "serial_number" %}</th>
+              <td>{{ object.serial_number }}</td>
+            </tr>
+            <tr>
+              <th scope="row">{% trans "not_valid_before" %}</th>
+              <td> {{object.not_valid_before}} </td>
+            </tr>
+            <tr>
+              <th scope="row">{% trans "not_valid_after" %}</th>
+              <td> {{object.not_valid_after}} </td>
+            </tr>
+            <tr>
+              <th scope="row">{% trans "signature_algorithm" %}</th>
+              <td> {{object.signature_algorithm}} </td>
             </tr>
           </table>
         </div>
@@ -52,6 +68,12 @@
       {% include 'inc/panels/custom_fields.html' %}
     </div>
     <div class="col col-md-6">
+      <div class="card">
+        <h5 class="card-header">{% trans "public_key" %}: {{ object.subject_public_key_algorithm }}</h5>
+        <div class="card-body">
+          {{ object.subject_public_key }}
+        </div>
+      </div>
       {% include 'inc/panels/tags.html' %}
       {% include 'inc/panels/comments.html' %}
     </div>

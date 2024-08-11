@@ -10,6 +10,7 @@ from cryptography.x509 import NameOID, Name, NameAttribute
 from cryptography.x509.oid import ObjectIdentifier
 from django.core.exceptions import ValidationError
 from mptt.models import TreeForeignKey, MPTTModel
+from django.utils.translation import gettext_lazy as _
 #
 # class OIDField(models.CharField):
 #
@@ -97,8 +98,8 @@ class Certificate(NetBoxModel, MPTTModel):
         return self.get_level()
 
     class Meta:
-        verbose_name_plural='Certificates'
-        verbose_name='Certificate'
+        verbose_name_plural=_('certificates')
+        verbose_name=_('certificate')
         constraints=[
             UniqueConstraint(fields=['serial_number', 'issuer_name'], name='unique_serial_issuer')
         ]

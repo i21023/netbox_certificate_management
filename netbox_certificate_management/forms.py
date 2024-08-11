@@ -39,3 +39,6 @@ class CertificateForm(NetBoxModelForm):
                   'extensions',
                   'tags'
                   )
+
+class URLForm(forms.Form):
+    url = forms.URLField(label='URL', required=True)
