@@ -45,3 +45,8 @@ msgstr "Zertifikat"
 msgid "certificates"
 msgstr "Zertifikate"
 
+msgid "root_cert_warn"
+msgstr "Das Stammzertifikat dieses Zertifikats kann nicht gefunden werden"
+
+msgid "days_left"
+msgstr "Tage verbleibend"

@@ -3,6 +3,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import pkcs12, pkcs7
 import base64
+import socket
+import ssl
+
 
 def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     """
@@ -52,24 +55,6 @@ def detect_certificate_format_and_convert_to_pem(cert_data: bytes) -> bytes:
         print("Not DER")
         pass  # Not DER format
 
-    # Try to load as PKCS#12
-    try:
-        _, cert, _ = pkcs12.load_key_and_certificates(data = cert_data, backend= default_backend(), password=None)
-        if cert is not None:
-            return cert.public_bytes(encoding=serialization.Encoding.PEM)
-    except ValueError:
-        print("Not PKCS#12")
-        pass  # Not PKCS#12 format
-
-    # Try to load as PKCS#7
-    try:
-        certificates = pkcs7.load_der_pkcs7_certificates(cert_data)
-        if certificates:
-            return certificates[0].public_bytes(encoding=serialization.Encoding.PEM) # Return the first certificate found
-    except ValueError:
-        print("Not PKCS#7")
-        pass  # Not PKCS#7 format
-
     raise ValueError("Unsupported certificate format")
 
 
@@ -91,9 +76,13 @@ def convert_pkcs12_to_pem(cert_data: bytes, password: str) -> bytes:
         raise ValueError('Either the password is wrong or the file is not in PKCS#12 format')
 
 
-
-
-
-
-
-
+def fetch_https_certificate(url: str) -> bytes:
+    try:
+        url=url.split('://')[1]
+        context = ssl.create_default_context()
+        with socket.create_connection((url, 443)) as sock:
+            with context.wrap_socket(sock, server_hostname=url) as ssock:
+                certs = ssock.getpeercert(binary_form=True)
+                return certs
+    except Exception as e:
+        raise ValueError(f'Error fetching certificate: {e}')

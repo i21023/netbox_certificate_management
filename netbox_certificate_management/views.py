@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from netbox.views import generic
 from dcim.tables import DeviceTable
+from rest_framework.reverse import reverse_lazy
 from virtualization.tables import VirtualMachineTable
 from openid.fetchers import fetch
 
@@ -12,7 +13,7 @@ from . import forms, models, tables
 from .tables import CertificateTable
 from .utils import return_days_valid, get_hierarchical_order
 from django.http import HttpResponse, JsonResponse
-from .parser import parse_certificate, convert_pem_to_der
+from .parser import parse_certificate, convert_pem_to_der, fetch_https_certificate
 from utilities.querydict import normalize_querydict
 from utilities.forms import restrict_form_fields
 from utilities.htmx import htmx_partial
@@ -29,9 +30,35 @@ from extras.signals import clear_events
 import base64
 from django_tables2 import RequestConfig
 from django.db.models import Case, When, Value, IntegerField
+from django.views.generic.edit import FormView
 
 
 
+class URLFormView(FormView):
+    template_name = 'netbox_certificate_management/url_form.html'
+    form_class = forms.URLForm
+    success_url = reverse_lazy('plugins:netbox_certificate_management:certificate_add')
+
+    def form_valid(self, form):
+        url = form.cleaned_data['url']
+
+        try:
+            print(url)
+            cert_data = fetch_https_certificate(url)
+        except Exception as e:
+            messages.error(self.request, str(e))
+            return super().form_invalid(form)
+
+        #parse the certificate
+        try:
+            parsed_cert_data, cert_b64 = parse_certificate(cert=cert_data)
+        except Exception as e:
+            return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
+
+        self.request.session['parsed_certificate'] = parsed_cert_data
+        self.request.session['uploaded_file_binary'] = cert_b64
+
+        return super().form_valid(form)
 
 class CertificateView(generic.ObjectView):
     queryset=models.Certificate.objects.all()

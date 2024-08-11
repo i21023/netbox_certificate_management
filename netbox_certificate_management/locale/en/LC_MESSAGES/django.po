@@ -44,3 +44,9 @@ msgstr "Certificate"
 
 msgid "certificates"
 msgstr "Certificates"
+
+msgid "root_cert_warn"
+msgstr "The root certificate of this certificate cannot be found"
+
+msgid "days_left"
+msgstr "Valid days left"

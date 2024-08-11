@@ -8,13 +8,16 @@ from .columns import ColorStatusColumn
 
 DEVICES = """
 {% for dev in value.all %}
-    <a href="{% url 'dcim:device' pk=dev.pk %}">{{ dev }}</a>{% if not forloop.last %}<br />{% endif %}
+    <a href="{% url 'dcim:device' pk=dev.pk %}">{{ dev }}</a>{% if not forloop.last %}, {% endif %}
 {% endfor %}
 """
 
 CERTIFICATE_LINK = """
 {% if record.pk %}
-  <a href="{{ record.get_absolute_url }}" id="certificate_{{ record.pk }}">{{ record.subject }}</a>
+    <a href="{{ record.get_absolute_url }}" id="certificate_{{ record.pk }}">{{ record.subject }} </a>
+    {% if record.issuer_name != record.subject and record.depth == 0 %} 
+       <span style="color: #eb5726;" class="mdi mdi-alert-outline" data-bs-toggle="tooltip" title='{{ certificate_tooltip }}'></span>
+    {% endif %}
 {% endif %}
 """
 
@@ -29,14 +32,28 @@ CERTIFICATE_LINK_WITH_DEPTH = """
 {% endif %}
 """ + CERTIFICATE_LINK
 
+ISSUER_COLUMN_TEMPLATE = """
+{% if record.issuer %}
+    <a href="{{ record.issuer.get_absolute_url }}">{{ record.issuer }}</a>
+{% elif record.issuer_name and record.issuer_name != record.subject %}
+    {{ record.issuer_name }}
+{% else %}
+    <span>—</span>
+{% endif %}
+"""
+
 class CertificateTable(NetBoxTable):
     subject=TemplateColumn(
         template_code=CERTIFICATE_LINK_WITH_DEPTH,
-        verbose_name=_('Subject')
+        extra_context={'certificate_tooltip': _('root_cert_warn')},
+        verbose_name=_('subject')
     )
-    valid_days_left = ColorStatusColumn()
-    issuer = tables.Column(
-        linkify=True
+    valid_days_left = ColorStatusColumn(
+        verbose_name=_('days_left')
+    )
+    issuer = TemplateColumn(
+        template_code=ISSUER_COLUMN_TEMPLATE,
+        verbose_name=_('issuer')
     )
     # subject = tables.Column(
     #     linkify=True
@@ -54,6 +71,12 @@ class CertificateTable(NetBoxTable):
         template_code=DEVICES,
         orderable=False,
         verbose_name=_('Virtual Machines')
+    )
+    not_valid_before = tables.DateTimeColumn(
+        verbose_name=_('not_valid_before')
+    )
+    not_valid_after = tables.DateTimeColumn(
+        verbose_name=_('not_valid_after')
     )
 
     class Meta(NetBoxTable.Meta):

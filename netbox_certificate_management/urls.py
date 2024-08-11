@@ -13,4 +13,5 @@ urlpatterns=(
     }),
     path('certificates/upload/', views.upload_file, name='upload_file'),
     path('certificates/download/<int:pk>', views.download_file, name='download_file'),
+    path('certificates/url/', views.URLFormView.as_view(), name='fetch_url'),
 )
