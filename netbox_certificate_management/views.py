@@ -35,6 +35,7 @@ from dcim.models import Device
 from virtualization.models import VirtualMachine
 from utilities.views import register_model_view, ViewTab
 from django.utils.translation import gettext_lazy as _
+from . import filtersets
 
 
 
@@ -88,6 +89,8 @@ class CertificateListView(generic.ObjectListView):
     ).order_by("tree_id", "lft")
     table=tables.CertificateTable
     template_name='netbox_certificate_management/certificate_list.html'
+    filterset=filtersets.CertificateFilterSet
+    filterset_form=forms.CertificateFilterForm
 
 
 class CertificateEditView(generic.ObjectEditView):

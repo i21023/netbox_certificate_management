@@ -6,6 +6,7 @@ from dcim.models import Device
 from virtualization.models import VirtualMachine
 from django import forms
 from utilities.forms.widgets import DateTimePicker
+from netbox.forms import NetBoxModelForm, NetBoxModelFilterSetForm
 
 class CertificateForm(NetBoxModelForm):
 
@@ -39,6 +40,25 @@ class CertificateForm(NetBoxModelForm):
                   'extensions',
                   'tags'
                   )
+
+class CertificateFilterForm(NetBoxModelFilterSetForm):
+    model=Certificate
+    id=forms.IntegerField(required=False)
+    valid_days_left=forms.IntegerField(required=False)
+    devices=forms.ModelMultipleChoiceField(
+        queryset=Device.objects.all(),
+        required=False
+    )
+    virtual_machines = forms.ModelMultipleChoiceField(
+        queryset=VirtualMachine.objects.all(),
+        required=False
+    )
+    subject=forms.CharField(required=False)
+    issuer=forms.ModelMultipleChoiceField(
+        queryset=Certificate.objects.all(),
+        required=False
+    )
+
 
 class URLForm(forms.Form):
     url = forms.URLField(label='URL', required=True)
