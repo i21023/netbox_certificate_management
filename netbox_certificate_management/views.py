@@ -11,7 +11,7 @@ from openid.fetchers import fetch
 
 from . import forms, models, tables
 from .tables import CertificateTable
-from .utils import return_days_valid, get_hierarchical_order
+from .utils import return_days_valid
 from django.http import HttpResponse, JsonResponse
 from .parser import parse_certificate, convert_pem_to_der, fetch_https_certificate
 from utilities.querydict import normalize_querydict
