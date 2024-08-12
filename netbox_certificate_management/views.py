@@ -31,6 +31,10 @@ import base64
 from django_tables2 import RequestConfig
 from django.db.models import Case, When, Value, IntegerField
 from django.views.generic.edit import FormView
+from dcim.models import Device
+from virtualization.models import VirtualMachine
+from utilities.views import register_model_view, ViewTab
+from django.utils.translation import gettext_lazy as _
 
 
 
@@ -90,6 +94,7 @@ class CertificateEditView(generic.ObjectEditView):
     queryset = models.Certificate.objects.all()
     form = forms.CertificateForm
     default_return_url = 'plugins:netbox_certificate_management:certificate_list'
+    template_name='netbox_certificate_management/certificate_edit.html'
 
     def get(self, request, *args, **kwargs):
         """
@@ -101,7 +106,6 @@ class CertificateEditView(generic.ObjectEditView):
 
         try:
             passed_fields = request.session.pop('parsed_certificate')
-
             issuer_reference = models.Certificate.objects.filter(subject=passed_fields['issuer_name']).first()
             if issuer_reference:
                 passed_fields['issuer'] = issuer_reference
@@ -111,6 +115,7 @@ class CertificateEditView(generic.ObjectEditView):
         initial_data = {}
         if passed_fields:
             initial_data.update(passed_fields)
+            print(passed_fields)
         elif not obj:
             return redirect('plugins:netbox_certificate_management:certificate_list')
 
@@ -210,6 +215,7 @@ class CertificateEditView(generic.ObjectEditView):
 
         else:
             logger.debug("Form validation failed")
+            print(form.errors)
 
         return render(request, self.template_name, {
             'object': obj,
@@ -278,3 +284,43 @@ def download_file(request, pk):
         return response
     else:
         return HttpResponse("No file found", status=404)
+
+
+@register_model_view(Device, name='certificates')
+class DeviceCertificatesView(generic.ObjectChildrenView):
+    queryset = Device.objects.all().prefetch_related('certificates')
+    child_model=models.Certificate
+    table=tables.CertificateTable
+    template_name='netbox_certificate_management/certificates_tab.html'
+    hide_if_empty=True
+    tab = ViewTab(
+        label=_('certificates'),
+        badge=lambda obj: obj.certificates.count(),
+        permission='dcim.view_device',
+        hide_if_empty=True
+    )
+
+    def get_children(self, request, parent):
+        return parent.certificates.annotate(
+            valid_days_left=return_days_valid()
+        )
+    
+
+@register_model_view(VirtualMachine, name='certificates')
+class DeviceCertificatesView(generic.ObjectChildrenView):
+    queryset = VirtualMachine.objects.all().prefetch_related('certificates')
+    child_model=models.Certificate
+    table=tables.CertificateTable
+    template_name='netbox_certificate_management/certificates_tab.html'
+    hide_if_empty=True
+    tab = ViewTab(
+        label=_('certificates'),
+        badge=lambda obj: obj.certificates.count(),
+        permission='virtualization.view_virtualmachine',
+        hide_if_empty=True
+    )
+
+    def get_children(self, request, parent):
+        return parent.certificates.annotate(
+            valid_days_left=return_days_valid()
+        )
