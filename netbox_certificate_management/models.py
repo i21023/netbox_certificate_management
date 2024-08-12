@@ -1,6 +1,7 @@
 from unicodedata import decimal
 
 from django.db import models
+from mptt.managers import TreeManager
 from netbox.models import NetBoxModel
 from django.urls import reverse
 import django.contrib.postgres.fields as pg_fields
@@ -73,8 +74,8 @@ class Certificate(NetBoxModel, MPTTModel):
     """
     serial_number=models.DecimalField(decimal_places=0, max_digits=100)
     signature_algorithm=models.CharField()
-    issuer_name=models.CharField(null=True, blank=True)
-    issuer=TreeForeignKey('self', related_name='certificates', on_delete=models.PROTECT, null=True, blank=True) #this is used to sort the list by hierarchy and subjects for the table view
+    issuer_name=models.CharField()
+    issuer=TreeForeignKey('self', related_name='certificates', on_delete=models.SET_NULL, null=True, blank=True) #this is used to sort the list by hierarchy and subjects for the table view
     not_valid_before=models.DateTimeField()
     not_valid_after=models.DateTimeField()
     subject=models.CharField()
@@ -85,6 +86,8 @@ class Certificate(NetBoxModel, MPTTModel):
     virtual_machines=models.ManyToManyField('virtualization.VirtualMachine', related_name='certificates', blank=True)
     comments=models.TextField(blank=True)
     file=models.BinaryField()
+    is_root=models.BooleanField(default=False)
+
 
 
     def get_absolute_url(self):

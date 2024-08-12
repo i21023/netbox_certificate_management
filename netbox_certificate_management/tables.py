@@ -15,7 +15,7 @@ DEVICES = """
 CERTIFICATE_LINK = """
 {% if record.pk %}
     <a href="{{ record.get_absolute_url }}" id="certificate_{{ record.pk }}">{{ record.subject }} </a>
-    {% if record.issuer_name != record.subject and record.depth == 0 %} 
+    {% if not record.is_root and record.depth == 0 %} 
        <span style="color: #eb5726;" class="mdi mdi-alert-outline" data-bs-toggle="tooltip" title='{{ certificate_tooltip }}'></span>
     {% endif %}
 {% endif %}
@@ -35,7 +35,7 @@ CERTIFICATE_LINK_WITH_DEPTH = """
 ISSUER_COLUMN_TEMPLATE = """
 {% if record.issuer %}
     <a href="{{ record.issuer.get_absolute_url }}">{{ record.issuer }}</a>
-{% elif record.issuer_name and record.issuer_name != record.subject %}
+{% elif record.issuer_name and not record.is_root %}
     {{ record.issuer_name }}
 {% else %}
     <span>—</span>

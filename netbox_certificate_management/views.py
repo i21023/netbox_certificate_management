@@ -36,7 +36,8 @@ from virtualization.models import VirtualMachine
 from utilities.views import register_model_view, ViewTab
 from django.utils.translation import gettext_lazy as _
 from . import filtersets
-
+from .models import Certificate
+from django.db.models import F, Q
 
 
 class URLFormView(FormView):
@@ -176,12 +177,21 @@ class CertificateEditView(generic.ObjectEditView):
                         file_binary = base64.b64decode(file_base64)
                         obj.file = file_binary
 
+                    if obj.issuer_name == obj.subject:
+                        obj.is_root = True
+
                     obj.save()
                     form.save_m2m()
 
                     # Check that the new object conforms with any assigned object-level permissions
                     if not self.queryset.filter(pk=obj.pk).exists():
                         raise PermissionsViolation()
+
+                    try:
+                        # update certificates with the current objects as issuer
+                        self.update_certificates_issuer(obj)
+                    except Exception as e:
+                        print(e)
 
                 msg = '{} {}'.format(
                     'Created' if object_created else 'Modified',
@@ -226,6 +236,33 @@ class CertificateEditView(generic.ObjectEditView):
             'return_url': self.get_return_url(request, obj),
             **self.get_extra_context(request, obj),
         })
+
+    def update_certificates_issuer(self, current_certificate) -> bool:
+        """
+        Update the issuer for certificates with the same subject as the current certificate
+        that have no issuer set.
+
+        Args:
+            current_certificate: The current certificate object being saved
+        """
+        # Find certificates with the same subject and no issuer
+        certificates_to_update = Certificate.objects.filter(
+            issuer_name=current_certificate.subject,
+            issuer__isnull=True,
+        ).exclude(
+            is_root=True
+        )
+
+        print(certificates_to_update)
+
+        if certificates_to_update.exists():
+            for certificate in certificates_to_update:
+                certificate.issuer = current_certificate
+                certificate.save()
+            return True
+
+        return False
+
 
 def disable_pre_populated_fields(form, passed_fields):
     for field in passed_fields:
