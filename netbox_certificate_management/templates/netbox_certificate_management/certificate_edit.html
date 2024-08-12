@@ -15,10 +15,8 @@
     {% render_field form.signature_algorithm %}
     {% render_field form.subject_public_key_algorithm %}
     {% render_field form.subject_public_key %}
+    <!-- TODO: this is probably not the best way to ensure the form is accepted -->
     <div class="d-none">{% render_field form.issuer_name%}</div>
-
-
-    
 </div>
 
 
