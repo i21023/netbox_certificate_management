@@ -98,4 +98,16 @@
       </div>
     </div>
   </div>
+  {% if children_certificates.data %}
+<div class="row">
+  <div class="col col-md-12">
+    <div class="card">
+    <h5 class="card-header">{% trans "Children" %}</h5>
+      <div class="card-body table-responsive">
+        {% render_table children_certificates %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock content %}

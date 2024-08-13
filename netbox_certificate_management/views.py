@@ -72,15 +72,23 @@ class CertificateView(generic.ObjectView):
 
     def get_extra_context(self, request, instance):
         print(instance)
-        print(request)
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
+
+
+        a = instance.certificates.all()
+        print(a)
+
+        children_table = CertificateTable(a)
+
+        children_table.configure(request)
         device_table.configure(request)
         vm_table.configure(request)
 
         return {
             'related_devices': device_table,
-            'related_vms': vm_table
+            'related_vms': vm_table,
+            'children_certificates': children_table
         }
 
 

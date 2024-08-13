@@ -55,9 +55,6 @@ class CertificateTable(NetBoxTable):
         template_code=ISSUER_COLUMN_TEMPLATE,
         verbose_name=_('issuer')
     )
-    # subject = tables.Column(
-    #     linkify=True
-    # )
     depth=tables.Column(
         accessor=Accessor('level'),
         verbose_name=_('Depth')
