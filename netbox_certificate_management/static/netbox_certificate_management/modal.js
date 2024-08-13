@@ -1,10 +1,16 @@
 let selected_file = null;
 
+// Function to attach the event listener
+function attachFileInputListener() {
+    const fileInput = document.getElementById('file_input');
+    fileInput.addEventListener('change', handleFileInputChange);
+}
 
-//Check for file upload
-document.getElementById('file_input').addEventListener('change', function(event) {
+// Handle file input change
+function handleFileInputChange(event) {
     const file = event.target.files[0];
 
+    console.log("triggered");
 
     if (file && (file.name.endsWith('.p12') || file.name.endsWith('.pfx'))) {
         // Copy the selected file to the hidden file input
@@ -14,10 +20,13 @@ document.getElementById('file_input').addEventListener('change', function(event)
         display_modal();
     } else {
         // Directly handle file upload without password
-        console.log("file:" + file.name)
+        console.log("file:" + file.name);
         handleFileUpload(file);
     }
-});
+}
+
+// Attach the event listener initially
+attachFileInputListener();
 
 function submitPasswordForm() {
     // Get the password from the input field
@@ -33,16 +42,36 @@ function submitPasswordForm() {
         // Proceed with the file upload, passing the password
         handleFileUpload(file, password);
 
-        // Hide the modal
+        // Hide the modal and reset fields
         $('#password_modal').modal('hide');
+        reset_modal();
     } else {
-        alert("Please select a valid file.");
+        console.log("Please select a valid file.");
     }
 }
 
-function display_modal(){
+function display_modal() {
     console.log("displaying modal");
     $('#password_modal').modal('show');
+}
+
+function hide_modal() {
+    $('#password_modal').modal('hide');
+    reset_modal();
+}
+
+function reset_modal() {
+    // Reset the modal state
+    $('#password').val('');
+    selected_file = null;
+    $('#password_modal').on('hidden.bs.modal', function () {
+        $(this).find('form').trigger('reset');
+    });
+
+    // Reset the file input element
+    const fileInput = document.getElementById('file_input');
+    fileInput.value = ''; // Clear the input value to allow re-triggering the change event
+    attachFileInputListener(); // Reattach the event listener
 }
 
 function handleFileUpload(file, password = null) {
@@ -67,25 +96,30 @@ function handleFileUpload(file, password = null) {
             }
         },
         error: function(jqXHR, textStatus, errorThrown) {
-            const response = jqXHR.responseJSON;
-            if (response && response.error) {
-                // Display the error message
-                displayErrorMessage(response.error);
-            } else {
-                displayErrorMessage('An unexpected error occurred.');
-            }
+            displayErrorMessage(jqXHR.responseJSON.error);
         }
     });
 }
 
 function displayErrorMessage(message) {
-    // Create a new div element for the message
-    const messageDiv = $('<div>', {
-        class: 'alert alert-danger',
-        role: 'alert',
-        text: message
-    });
+    const errorContainer = document.getElementById('django-messages');
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-dark border-0 shadow-sm fade show';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.setAttribute('data-bs-delay', '10000'); // 10 seconds delay
 
-    // Append the message div to the body or a specific container
-    $('#message-container').html(messageDiv);
+    toast.innerHTML = `
+        <div class="toast-header text-bg-danger">
+            <i class="mdi mdi-alert me-1"></i>
+            Error
+            <button type="button" class="btn-close me-0 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            ${message}
+        </div>
+    `;
+
+    errorContainer.appendChild(toast);
 }

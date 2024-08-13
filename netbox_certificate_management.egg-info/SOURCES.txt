@@ -16,7 +16,6 @@ netbox_certificate_management.egg-info/PKG-INFO
 netbox_certificate_management.egg-info/SOURCES.txt
 netbox_certificate_management.egg-info/dependency_links.txt
 netbox_certificate_management.egg-info/not-zip-safe
-netbox_certificate_management.egg-info/requires.txt
 netbox_certificate_management.egg-info/top_level.txt
 netbox_certificate_management/api/__init__.py
 netbox_certificate_management/api/serializers.py
