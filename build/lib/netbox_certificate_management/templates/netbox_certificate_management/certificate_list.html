@@ -1,0 +1,91 @@
+{% extends "generic/object_list.html" %}
+{% load buttons %}
+{% load helpers %}
+{% load plugins %}
+{% load render_table from django_tables2 %}
+{% load static %}
+{% load i18n %}
+
+{% block head %}
+  {{ block.super }}
+  <script src="{% static 'netbox_certificate_management/jq.js' %}"></script>
+{% endblock head %}
+
+
+{% block controls %}
+  <div class="btn-list">
+    {% plugin_list_buttons model %}
+    {% block extra_controls %}
+      <button class="btn btn-outline-secondary toggle-depth" type="button">
+        {% trans "Hide Depth Indicators" %}
+      </button>
+    {% endblock %}
+    {% if 'add' in actions %}
+       <div class="dropdown">
+          <button type="button" class="btn btn-blue dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="mdi"></i> {% trans "Add" %}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <input type="file" id="file_input" name="file" style="display:none;" accept=".pem, .crt, .der, .cer, .p12, .pfx, application/x-pkcs12, application/x-pkcs7-certificates, application/x-x509-ca-cert, application/x-x509-user-cert">
+                <a class="dropdown-item" href="#" onclick="document.getElementById('file_input').click(); return false;">
+                  <i class="mdi mdi-upload"></i> {% trans "Upload" %}
+                </a>
+              </form>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'plugins:netbox_certificate_management:fetch_url' %}">
+                <i class="mdi mdi-earth"></i> {% trans "URL" %}
+              </a>
+            </li>
+          </ul>
+      </div>
+    {% endif %}
+    {% if 'import' in actions %}
+      {% import_button model %}
+    {% endif %}
+    {% if 'export' in actions %}
+      {% export_button model %}
+    {% endif %}
+  </div>
+{% endblock controls %}
+
+{% block content %}
+  {{ block.super }}
+   <div class="modal fade" id="password_modal" tabindex="-1" aria-labelledby="passwordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="passwordModalLabel">Enter Password for Certificate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="password-form">
+                    {% csrf_token %}
+                    <input type="hidden" id="hidden-file-input" name="file">
+                    <div class="form-group mb-3">
+                        <label for="password">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="form-group">
+                        <div class="text-muted">The password is required for .p12 and .pfx files.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="submitPasswordForm()">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- provide this there to let the static file access the django rendered url -->
+<script type="text/javascript">
+    var uploadUrl = "{% url 'plugins:netbox_certificate_management:upload_file' %}"; var csfrToken = "{{ csrf_token }}";
+</script>
+<script src="{% static 'netbox_certificate_management/modal.js' %}"></script>
+
+{% endblock content %}
