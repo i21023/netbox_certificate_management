@@ -1,0 +1,2 @@
+recursive-include netbox_certificate_management/templates *
+recursive-include netbox_certificate_management/static *
