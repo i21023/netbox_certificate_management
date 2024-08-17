@@ -16,18 +16,43 @@ SAN_TYPE_MAPPING = {
     x509.OtherName: 'OtherName'
 }
 
-def parse_san_extension(san_extension) -> dict:
-    for ext in san_extension:
-        if isinstance(ext.value, x509.SubjectAlternativeName):
-            sans = []
-            for name in ext.value:
-                if isinstance(name, x509.IPAddress):
-                    sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value.exploded})
-                else:
-                    sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value})
-    print(sans)
-    return sans
+def parse_san_extension(extensions) -> list[dict] | None:
+    try:
+        san_extension = extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        sans = []
+        for name in san_extension.value:
+            if isinstance(name, x509.IPAddress):
+                sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value.exploded})
+            else:
+                sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value})
+        return sans
+    except x509.ExtensionNotFound:
+        return None
 
+def parse_basic_constraints_extension(extensions) -> dict | None:
+    try:
+        basic_constraints_extension = extensions.get_extension_for_class(x509.BasicConstraints)
+        return {
+            'ca': basic_constraints_extension.value.ca,
+            'path_length': basic_constraints_extension.value.path_length
+        }
+    except x509.ExtensionNotFound:
+        return None
+
+def parse_key_usage_extension(extensions) -> dict | None:
+    try:
+        key_usage_extension = extensions.get_extension_for_class(x509.KeyUsage)
+        return {
+            'digital_signature': key_usage_extension.value.digital_signature,
+            'content_commitment': key_usage_extension.value.content_commitment,
+            'key_encipherment': key_usage_extension.value.key_encipherment,
+            'data_encipherment': key_usage_extension.value.data_encipherment,
+            'key_agreement': key_usage_extension.value.key_agreement,
+            'key_cert_sign': key_usage_extension.value.key_cert_sign,
+            'crl_sign': key_usage_extension.value.crl_sign
+        }
+    except x509.ExtensionNotFound:
+        return None
 
 def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     """
@@ -44,10 +69,15 @@ def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     if(pem_cert.version != x509.Version.v3):
         raise ValueError('Only x509 v3 certificates are supported')
 
+    # Parse extensions
     extensions = {}
-    for ext in pem_cert.extensions:
-        extensions['san'] = parse_san_extension(pem_cert.extensions)
-    
+    san_extension = parse_san_extension(pem_cert.extensions)
+    if san_extension: extensions['san'] = san_extension
+    basic_contraints_extension = parse_basic_constraints_extension(pem_cert.extensions)
+    if basic_contraints_extension: extensions['basic_constraints'] = basic_contraints_extension
+    key_usage_extension = parse_key_usage_extension(pem_cert.extensions)
+    if key_usage_extension: extensions['key_usage'] = key_usage_extension
+
     data = {
         'subject': pem_cert.subject.rfc4514_string(),
         'serial_number': pem_cert.serial_number,

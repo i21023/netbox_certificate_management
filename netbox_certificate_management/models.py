@@ -12,62 +12,6 @@ from cryptography.x509.oid import ObjectIdentifier
 from django.core.exceptions import ValidationError
 from mptt.models import TreeForeignKey, MPTTModel
 from django.utils.translation import gettext_lazy as _
-import json
-#
-# class OIDField(models.CharField):
-#
-#         description="A field to store Object Identifier (OID)"
-#
-#         def __init__(self, *args, **kwargs):
-#             super().__init__(*args, **kwargs)
-#
-#         def is_valid_oid(self, oid_str):
-#             try:
-#                 # Parse the OID string
-#                 ObjectIdentifier(oid_str)
-#                 return True
-#             except Exception:
-#                 return False
-#
-#         def validate(self, value, model_instance):
-#             super().validate(value, model_instance)
-#             if not self.is_valid_oid(value):
-#                 raise ValidationError(f"Invalid OID: {value}")
-#
-# class DNField(models.CharField):
-#
-#     description="A field to store Distinguished Name (DN)"
-#
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#
-#     def is_valid_dn(self, dn_str):
-#         try:
-#             # Parse the DN string into a Name object
-#             attributes = []
-#             for part in dn_str.split(','):
-#                 key, value = part.split('=')
-#                 oid = getattr(NameOID, key.upper())
-#                 attributes.append(NameAttribute(oid, value))
-#
-#             # Create a Name object, which will validate the DN
-#             Name(attributes)
-#             return True
-#         except Exception:
-#             return False
-#
-#     def validate(self, value, model_instance):
-#         super().validate(value, model_instance)
-#         if not self.is_valid_dn(value):
-#             raise ValidationError(f"Invalid DN: {value}")
-
-# class VersionChoice(ChoiceSet):
-#     key='Certificate.versions'
-
-#     CHOICES=[
-#         (0, 'v1'),
-#         (2, 'v3'),
-#     ]
 
 class Certificate(NetBoxModel, MPTTModel):
     """
@@ -89,8 +33,6 @@ class Certificate(NetBoxModel, MPTTModel):
     file=models.BinaryField()
     is_root=models.BooleanField(default=False)
 
-
-
     def get_absolute_url(self):
         return reverse('plugins:netbox_certificate_management:certificate_detail', args=[self.pk])
 
@@ -104,6 +46,14 @@ class Certificate(NetBoxModel, MPTTModel):
     @property
     def sans(self):
         return self.extensions.get('san', [])
+
+    @property
+    def key_usage(self):
+        return self.extensions.get('key_usage', {})
+
+    @property
+    def basic_constraints(self):
+        return self.extensions.get('basic_constraints', {})
 
     class Meta:
         verbose_name_plural=_('certificates')
