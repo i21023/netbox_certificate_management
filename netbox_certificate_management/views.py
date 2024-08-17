@@ -74,12 +74,7 @@ class CertificateView(generic.ObjectView):
         print(instance)
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
-
-
-        a = instance.certificates.all()
-        print(a)
-
-        children_table = CertificateTable(a)
+        children_table = CertificateTable(instance.certificates.all())
 
         children_table.configure(request)
         device_table.configure(request)
@@ -90,7 +85,6 @@ class CertificateView(generic.ObjectView):
             'related_vms': vm_table,
             'children_certificates': children_table
         }
-
 
 class CertificateListView(generic.ObjectListView):
     queryset=models.Certificate.objects.annotate(
@@ -371,3 +365,13 @@ class DeviceCertificatesView(generic.ObjectChildrenView):
         return parent.certificates.annotate(
             valid_days_left=return_days_valid()
         )
+
+@register_model_view(Certificate, name='extensions')
+class CertificateExtensionsTabView(generic.ObjectView):
+    queryset = models.Certificate.objects.all()
+    template_name = 'netbox_certificate_management/certificate_extensions.html'
+    hide_if_empty = True
+    tab = ViewTab(
+        label='Extensions',
+        hide_if_empty=True,
+    )

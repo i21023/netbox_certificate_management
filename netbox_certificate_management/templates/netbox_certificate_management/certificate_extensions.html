@@ -1,0 +1,89 @@
+{% extends 'generic/object.html' %}
+{% load i18n %}
+{% load render_table from django_tables2 %}
+
+{% block title %}{{ object.subject }}{% endblock %}
+
+{% block extra_controls %}
+  <!-- New button for special action -->
+  {% if object.file %}
+  <div class="dropdown">
+          <button type="button" class="btn btn-blue dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="mdi"></i> {% trans "Download" %}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a class="dropdown-item" href="{% url 'plugins:netbox_certificate_management:download_file' object.pk %}">
+                <i class="mdi"></i> PEM-Format
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'plugins:netbox_certificate_management:download_file' object.pk%}?convert_to_der=True">
+                <i class="mdi"></i> DER-Format
+              </a>
+            </li>
+          </ul>
+      </div>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if not object.sans and not object.basic_constraints and not object.key_usage %}
+<div class="alert alert-info"> No Extensions found for this Certificate </div>
+{% else %}
+  <div class="row mb-3">
+    <div class="col col-md-6">
+      {% if object.sans %}
+        <div class="card">
+            <h5 class="card-header">Subject Alternative Names</h5>
+            <div class="card-body">
+              <table class="table table-hover attr-table">
+                {% for entry in object.sans %}
+                <tr>
+                  {% for key, value in entry.items %}
+                  <th scope="row">{{key}}</th>
+                  <td> {{value}} </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+              </table>
+            </div>
+      </div>
+        {% endif %}
+      {% if object.basic_constraints %}
+      <div class="card">
+        <h5 class="card-header">Basic Constraints</h5>
+        <div class="card-body">
+          <table class="table table-hover attr-table">
+            {% for key, value in object.basic_constraints.items %}
+            <tr>
+              <th scope="row">{{key}}</th>
+              <td> {{value}} </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+      <div class="col col-md-6">
+              {% if object.key_usage %}
+          <div class="card">
+        <h5 class="card-header">Key Usage</h5>
+        <div class="card-body">
+          <table class="table table-hover attr-table">
+            {% for key, value in object.key_usage.items %}
+            <tr>
+              <th scope="row">{{key}}</th>
+              <td> {{value}} </td>
+            </tr>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+        {% endif %}
+          </div>
+  </div>
+{% endif %}
+{% endblock content %}
