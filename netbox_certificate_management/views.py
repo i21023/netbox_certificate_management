@@ -285,7 +285,6 @@ class CertificateDeleteView(generic.ObjectDeleteView):
 @require_POST
 def upload_file(request):
     file = request.FILES.get('file')
-    test = request.POST.get('password')
     password = request.POST.get('password')
 
     if not file:

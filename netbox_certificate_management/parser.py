@@ -6,6 +6,28 @@ import base64
 import socket
 import ssl
 
+SAN_TYPE_MAPPING = {
+    x509.DNSName: 'DNS',
+    x509.RFC822Name: 'Email',
+    x509.IPAddress: 'IP',
+    x509.UniformResourceIdentifier: 'URI',
+    x509.DirectoryName: 'DirName',
+    x509.RegisteredID: 'RegisteredID',
+    x509.OtherName: 'OtherName'
+}
+
+def parse_san_extension(san_extension) -> dict:
+    for ext in san_extension:
+        if isinstance(ext.value, x509.SubjectAlternativeName):
+            sans = []
+            for name in ext.value:
+                if isinstance(name, x509.IPAddress):
+                    sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value.exploded})
+                else:
+                    sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value})
+    print(sans)
+    return sans
+
 
 def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     """
@@ -21,6 +43,10 @@ def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
 
     if(pem_cert.version != x509.Version.v3):
         raise ValueError('Only x509 v3 certificates are supported')
+
+    extensions = {}
+    for ext in pem_cert.extensions:
+        extensions['san'] = parse_san_extension(pem_cert.extensions)
     
     data = {
         'subject': pem_cert.subject.rfc4514_string(),
@@ -31,6 +57,7 @@ def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
         'not_valid_after': pem_cert.not_valid_after_utc.isoformat(),
         'issuer_name': pem_cert.issuer.rfc4514_string(),
         'signature_algorithm': pem_cert.signature_algorithm_oid._name,
+        'extensions': extensions
     }
     return data, base64.b64encode(pem_cert_bytes).decode('utf-8')
 

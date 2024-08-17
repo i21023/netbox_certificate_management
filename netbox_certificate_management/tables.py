@@ -75,12 +75,25 @@ class CertificateTable(NetBoxTable):
     not_valid_after = tables.DateTimeColumn(
         verbose_name=_('not_valid_after')
     )
+    sans = tables.Column(
+        verbose_name=_('sans')
+    )
 
     class Meta(NetBoxTable.Meta):
         model = Certificate
         fields = (
-            'pk', 'serial_number', 'issuer', 'subject', 'not_valid_before', 'not_valid_after', 'valid_days_left', 'depth', 'devices', 'virtual_machines', 'comments', 'actions'
+            'pk', 'serial_number', 'issuer', 'subject', 'not_valid_before', 'not_valid_after', 'valid_days_left', 'sans', 'depth', 'devices', 'virtual_machines', 'comments', 'actions'
         )
         default_columns = (
             'subject', 'issuer', 'valid_days_left', 'default_action'
         )
+
+    def render_sans(self, value):
+        # Extract SAN values
+        san_values = []
+        for entry in value:
+            for san_value in entry.values():
+                san_values.append(san_value)
+
+        # Return as comma-separated string
+        return ', '.join(san_values)

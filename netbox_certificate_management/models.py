@@ -12,6 +12,7 @@ from cryptography.x509.oid import ObjectIdentifier
 from django.core.exceptions import ValidationError
 from mptt.models import TreeForeignKey, MPTTModel
 from django.utils.translation import gettext_lazy as _
+import json
 #
 # class OIDField(models.CharField):
 #
@@ -99,6 +100,10 @@ class Certificate(NetBoxModel, MPTTModel):
     @property
     def depth(self):
         return self.get_level()
+
+    @property
+    def sans(self):
+        return self.extensions.get('san', [])
 
     class Meta:
         verbose_name_plural=_('certificates')
