@@ -58,6 +58,7 @@ class CertificateFilterForm(NetBoxModelFilterSetForm):
         queryset=Certificate.objects.all(),
         required=False
     )
+    sans=forms.CharField(required=False)
 
 
 class URLForm(forms.Form):

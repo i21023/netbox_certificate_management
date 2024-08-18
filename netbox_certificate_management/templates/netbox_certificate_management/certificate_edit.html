@@ -62,3 +62,18 @@
   {% render_field form.comments %}
 </div>
 {% endblock %}
+
+{% block buttons %}
+<a href="{{ return_url }}" class="btn btn-outline-secondary">{% trans "Cancel" %}</a>
+          {% if object.pk %}
+            <button type="submit" name="_update" class="btn btn-primary">
+              {% trans "Save" %}
+            </button>
+          {% else %}
+            <div class="btn-group" role="group" aria-label="{% trans "Actions" %}">
+              <button type="submit" name="_create" class="btn btn-primary">
+                {% trans "Create" %}
+              </button>
+            </div>
+          {% endif %}
+{% endblock %}
