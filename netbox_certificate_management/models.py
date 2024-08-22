@@ -55,6 +55,14 @@ class Certificate(NetBoxModel, MPTTModel):
     def basic_constraints(self):
         return self.extensions.get('basic_constraints', {})
 
+    @property
+    def extended_key_usage(self):
+        return self.extensions.get('extended_key_usage', [])
+
+    @property
+    def crl_distribution_points(self):
+        return self.extensions.get('crl_distribution_points', [])
+
     class Meta:
         verbose_name_plural=_('certificates')
         verbose_name=_('certificate')

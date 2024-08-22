@@ -6,7 +6,7 @@ import base64
 import socket
 import ssl
 
-SAN_TYPE_MAPPING = {
+GENERAL_NAME_MAPPING = {
     x509.DNSName: 'DNS',
     x509.RFC822Name: 'Email',
     x509.IPAddress: 'IP',
@@ -22,9 +22,9 @@ def parse_san_extension(extensions) -> list[dict] | None:
         sans = []
         for name in san_extension.value:
             if isinstance(name, x509.IPAddress):
-                sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value.exploded})
+                sans.append({GENERAL_NAME_MAPPING.get(name.__class__): name.value.exploded})
             else:
-                sans.append({SAN_TYPE_MAPPING.get(name.__class__): name.value})
+                sans.append({GENERAL_NAME_MAPPING.get(name.__class__): name.value})
         return sans
     except x509.ExtensionNotFound:
         return None
@@ -54,6 +54,29 @@ def parse_key_usage_extension(extensions) -> dict | None:
     except x509.ExtensionNotFound:
         return None
 
+def parse_extended_key_usage_extension(extensions) -> list | None:
+    try:
+        extended_key_usage_extension = extensions.get_extension_for_class(x509.ExtendedKeyUsage)
+        extended_keys = []
+        for key in extended_key_usage_extension.value:
+            extended_keys.append(key._name)
+        return extended_keys
+    except x509.ExtensionNotFound:
+        return None
+
+def parse_crl_distribution_points_extension(extensions) -> list[dict] | None:
+    try:
+        crl_dist_points_extension = extensions.get_extension_for_class(x509.CRLDistributionPoints)
+        crl_dist_points = []
+        for dist_point in crl_dist_points_extension.value:
+            for dist_point_name in dist_point.full_name:
+                crl_dist_points.append({
+                    GENERAL_NAME_MAPPING.get(dist_point_name.__class__): dist_point_name.value
+                })
+        return crl_dist_points
+    except x509.ExtensionNotFound:
+        return None
+
 def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     """
     Takes in a certificate in any format (PEM, DER, PKCS#12, PKCS#7) and returns a tuple with the parsed
@@ -77,6 +100,10 @@ def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
     if basic_contraints_extension: extensions['basic_constraints'] = basic_contraints_extension
     key_usage_extension = parse_key_usage_extension(pem_cert.extensions)
     if key_usage_extension: extensions['key_usage'] = key_usage_extension
+    extended_key_usage_extension = parse_extended_key_usage_extension(pem_cert.extensions)
+    if extended_key_usage_extension: extensions['extended_key_usage'] = extended_key_usage_extension
+    crl_distribution_points_extension = parse_crl_distribution_points_extension(pem_cert.extensions)
+    if crl_distribution_points_extension: extensions['crl_distribution_points'] = crl_distribution_points_extension
 
     data = {
         'subject': pem_cert.subject.rfc4514_string(),
