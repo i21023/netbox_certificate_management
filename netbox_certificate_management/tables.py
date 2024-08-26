@@ -6,6 +6,16 @@ from netbox.tables import NetBoxTable, ColoredLabelColumn, ColorColumn, Template
 from .models import Certificate
 from .columns import ColorStatusColumn
 
+VALID_DAYS_LEFT="""
+{% if record.valid_days_left < 0 %}
+    <span class="badge" style="background-color: red; color: white">{{record.valid_days_left}}</span>
+{% elif record.valid_days_left < 30 %}
+    <span class="badge" style="background-color: orange; color: white">{{record.valid_days_left}}</span>
+{% else %}
+    <span class="badge" style="background-color: green; color: white">{{record.valid_days_left}}</span>
+{% endif %}
+"""
+
 DEVICES = """
 {% for dev in value.all %}
     <a href="{% url 'dcim:device' pk=dev.pk %}">{{ dev }}</a>{% if not forloop.last %}, {% endif %}
@@ -48,7 +58,8 @@ class CertificateTable(NetBoxTable):
         extra_context={'certificate_tooltip': _('root_cert_warn')},
         verbose_name=_('subject')
     )
-    valid_days_left = ColorStatusColumn(
+    valid_days_left = TemplateColumn(
+        template_code=VALID_DAYS_LEFT,
         verbose_name=_('days_left')
     )
     issuer = TemplateColumn(
