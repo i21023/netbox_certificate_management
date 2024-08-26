@@ -31,7 +31,7 @@
 
 {% block content %}
 
-{% if not object.sans and not object.basic_constraints and not object.key_usage %}
+{% if not object.sans and not object.basic_constraints and not object.key_usage and not object.extended_key_usage and not object.crl_distribution_points %}
 <div class="alert alert-info"> No Extensions found for this Certificate</div>
 {% else %}
 <div class="row mb-3">
@@ -84,6 +84,9 @@
                 </table>
             </div>
         </div>
+        {% endif %}
+
+        {% if object.extended_key_usage %}
         <div class="card">
             <h5 class="card-header">Extended Key Usage</h5>
             <div class="card-body">
@@ -96,7 +99,9 @@
                 </table>
             </div>
         </div>
+        {% endif %}
 
+        {% if object.crl_distribution_points %}
         <div class="card">
             <h5 class="card-header">CRL Distribution Points</h5>
             <div class="card-body">
@@ -115,8 +120,8 @@
                     {% endfor %}
                 </table>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 

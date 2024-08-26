@@ -4,7 +4,6 @@ from django.utils.translation import gettext_lazy as _
 
 from netbox.tables import NetBoxTable, ColoredLabelColumn, ColorColumn, TemplateColumn, columns
 from .models import Certificate
-from .columns import ColorStatusColumn
 
 VALID_DAYS_LEFT="""
 {% if record.valid_days_left < 0 %}
