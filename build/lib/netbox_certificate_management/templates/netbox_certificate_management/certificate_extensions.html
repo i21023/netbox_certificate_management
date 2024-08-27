@@ -61,21 +61,7 @@
                     {% for key, value in object.basic_constraints.items %}
                     <tr>
                         <th scope="row">{{key}}</th>
-                        <td>
-                            {% if key == "ca" %}
-                                {% if value %}
-                                    <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
-                                {% else %}
-                                    <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
-                                {% endif %}
-                            {% else %}
-                            {% if value %}
-                                {{value}}
-                            {% else %}
-                                —
-                            {%endif%}
-                            {% endif %}
-                        </td>
+                        <td> {{value}}</td>
                     </tr>
                     {% endfor %}
                 </table>
@@ -92,13 +78,7 @@
                     {% for key, value in object.key_usage.items %}
                     <tr>
                         <th scope="row">{{key}}</th>
-                        <td>
-                            {% if value %}
-                                <span class="text-success"><i class="mdi mdi-check-bold"></i></span>
-                            {% else %}
-                                <span class="text-danger"><i class="mdi mdi-close-thick"></i></span>
-                            {% endif %}
-                        </td>
+                        <td> {{value}}</td>
                     </tr>
                     {% endfor %}
                 </table>
