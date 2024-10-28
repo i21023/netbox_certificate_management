@@ -49,7 +49,6 @@ class URLFormView(FormView):
         url = form.cleaned_data['url']
 
         try:
-            print(url)
             cert_data = fetch_https_certificate(url)
         except Exception as e:
             messages.error(self.request, str(e))
@@ -71,10 +70,15 @@ class CertificateView(generic.ObjectView):
     template_name='netbox_certificate_management/certificate.html'
 
     def get_extra_context(self, request, instance):
-        print(instance)
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
-        children_table = CertificateTable(instance.certificates.all())
+        children_table = CertificateTable(instance.certificates.annotate(
+            valid_days_left=return_days_valid()
+        ).order_by("subject"))
+
+        models.Certificate.objects.annotate(
+        valid_days_left=return_days_valid()
+    ).order_by("tree_id", "lft")
 
         children_table.configure(request)
         device_table.configure(request)
@@ -112,7 +116,13 @@ class CertificateEditView(generic.ObjectEditView):
 
         try:
             passed_fields = request.session.pop('parsed_certificate')
-            issuer_reference = models.Certificate.objects.filter(subject=passed_fields['issuer_name']).first()
+            parent = models.Certificate.objects.filter(subject=passed_fields['issuer_name']).first()
+
+            issuer_reference=None
+
+            if parent:
+                issuer_reference = parent if parent.pk != obj.pk else None
+
             if issuer_reference:
                 passed_fields['issuer'] = issuer_reference
         except KeyError:
@@ -121,7 +131,6 @@ class CertificateEditView(generic.ObjectEditView):
         initial_data = {}
         if passed_fields:
             initial_data.update(passed_fields)
-            print(passed_fields)
         elif not obj:
             return redirect('plugins:netbox_certificate_management:certificate_list')
 
@@ -255,7 +264,6 @@ class CertificateEditView(generic.ObjectEditView):
             is_root=True
         )
 
-        print(certificates_to_update)
 
         if certificates_to_update.exists():
             for certificate in certificates_to_update:
@@ -281,6 +289,8 @@ def upload_file(request):
     file = request.FILES.get('file')
     password = request.POST.get('password')
 
+    pk_id = request.GET.get('pk_id')
+
     if not file:
         messages.error(request, 'No file uploaded')
         return JsonResponse({'error': 'No file uploaded'}, status=400)
@@ -300,8 +310,16 @@ def upload_file(request):
     request.session['parsed_certificate'] = parsed_cert_data
     request.session['uploaded_file_binary'] = cert_b64
 
-    # Generate the URL for the EditFormView
-    redirect_url = reverse('plugins:netbox_certificate_management:certificate_add')  # Replace with the correct URL pattern name
+    # upload new file
+    if pk_id == "-1":
+        redirect_url = reverse('plugins:netbox_certificate_management:certificate_add') 
+    else: #update existing file
+        element = models.Certificate.objects.get(pk=pk_id)
+        if element.subject != parsed_cert_data.get('subject') or element.issuer_name != parsed_cert_data.get('issuer_name'):
+            return JsonResponse({'error': 'The Subject of the uploaded Certificate does not match the current one'}, status=400)
+        #if element.serial_number == parsed_cert_data.get('serial_number'):
+        #    return JsonResponse({'error': 'The two certificates have the same serial number, no update needed'}, status=400)
+        redirect_url = reverse('plugins:netbox_certificate_management:certificate_edit', args=[pk_id])
 
     return JsonResponse({'redirect': redirect_url})
 

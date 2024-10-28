@@ -20,6 +20,8 @@
         {% trans "Hide Depth Indicators" %}
       </button>
     {% endblock %}
+    <input type="file" id="file_input" name="file" style="display:none;" accept=".pem, .crt, .der, .cer, .p12, .pfx, application/x-pkcs12, application/x-pkcs7-certificates, application/x-x509-ca-cert, application/x-x509-user-cert">
+    <input type="hidden" id="button_identifier" name="button_identifier" value="">
     {% if 'add' in actions %}
        <div class="dropdown">
           <button type="button" class="btn btn-blue dropdown-toggle" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -29,8 +31,7 @@
             <li>
               <form method="post" style="display:inline;">
                 {% csrf_token %}
-                <input type="file" id="file_input" name="file" style="display:none;" accept=".pem, .crt, .der, .cer, .p12, .pfx, application/x-pkcs12, application/x-pkcs7-certificates, application/x-x509-ca-cert, application/x-x509-user-cert">
-                <a class="dropdown-item" href="#" onclick="document.getElementById('file_input').click(); return false;">
+                <a class="dropdown-item" href="#" onclick="handleFileInputClick(-1)" button_id="add">
                   <i class="mdi mdi-upload"></i> {% trans "Upload" %}
                 </a>
               </form>
@@ -84,7 +85,20 @@
 
 <!-- provide this there to let the static file access the django rendered url -->
 <script type="text/javascript">
-    var uploadUrl = "{% url 'plugins:netbox_certificate_management:upload_file' %}"; var csfrToken = "{{ csrf_token }}";
+    var uploadUrl = "{% url 'plugins:netbox_certificate_management:upload_file' %}"; 
+    var csfrToken = "{{ csrf_token }}";
+
+    function handleFileInputClick(id) {
+      console.log(id)
+      if (id){
+        document.getElementById('button_identifier').value = id
+      }
+      else {
+        document.getElementById('button_identifier').value = null
+      }
+      // Trigger the file input click
+      document.getElementById('file_input').click();
+    }
 </script>
 <script src="{% static 'netbox_certificate_management/modal.js' %}"></script>
 

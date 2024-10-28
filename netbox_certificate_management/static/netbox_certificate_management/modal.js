@@ -10,7 +10,6 @@ function attachFileInputListener() {
 function handleFileInputChange(event) {
     const file = event.target.files[0];
 
-    console.log("triggered");
 
     if (file && (file.name.endsWith('.p12') || file.name.endsWith('.pfx'))) {
         // Copy the selected file to the hidden file input
@@ -78,9 +77,11 @@ function handleFileUpload(file, password = null) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('password', password);
+    
+    const type=$('#button_identifier')
 
     $.ajax({
-        url: uploadUrl,
+        url: `${uploadUrl}?pk_id=${type.val()}`,
         type: 'POST',
         data: formData,
         processData: false,

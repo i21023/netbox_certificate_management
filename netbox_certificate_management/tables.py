@@ -88,6 +88,11 @@ class CertificateTable(NetBoxTable):
     sans = tables.Column(
         verbose_name=_('sans')
     )
+    actions=columns.ActionsColumn(
+        extra_buttons='''
+        <a class="btn btn-sm btn-primary" type="button" style="margin-right:2px;" href="#" onclick="handleFileInputClick({{ record.pk }})" button_id="update"><span class="mdi mdi-swap-horizontal-bold"></span></a>
+        '''
+    )
 
     class Meta(NetBoxTable.Meta):
         model = Certificate
