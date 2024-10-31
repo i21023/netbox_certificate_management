@@ -70,15 +70,14 @@ class CertificateView(generic.ObjectView):
     template_name='netbox_certificate_management/certificate.html'
 
     def get_extra_context(self, request, instance):
+
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
-        children_table = CertificateTable(instance.certificates.annotate(
-            valid_days_left=return_days_valid()
-        ).order_by("subject"))
+        children_table = CertificateTable(instance.certificates.all())
 
         models.Certificate.objects.annotate(
-        valid_days_left=return_days_valid()
-    ).order_by("tree_id", "lft")
+            valid_days_left=return_days_valid()
+        ).order_by("tree_id", "lft")
 
         children_table.configure(request)
         device_table.configure(request)

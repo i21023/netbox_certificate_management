@@ -12,6 +12,7 @@ from cryptography.x509.oid import ObjectIdentifier
 from django.core.exceptions import ValidationError
 from mptt.models import TreeForeignKey, MPTTModel
 from django.utils.translation import gettext_lazy as _
+from datetime import datetime, timezone
 
 class Certificate(NetBoxModel, MPTTModel):
     """
@@ -62,6 +63,10 @@ class Certificate(NetBoxModel, MPTTModel):
     @property
     def crl_distribution_points(self):
         return self.extensions.get('crl_distribution_points', [])
+    
+    @property
+    def valid_days_luft(self) -> int:
+        return (self.not_valid_after - datetime.now(timezone.utc)).days
 
     class Meta:
         verbose_name_plural=_('certificates')
