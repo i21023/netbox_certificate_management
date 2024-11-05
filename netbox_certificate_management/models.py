@@ -64,10 +64,6 @@ class Certificate(NetBoxModel, MPTTModel):
     def crl_distribution_points(self):
         return self.extensions.get('crl_distribution_points', [])
     
-    @property
-    def valid_days_luft(self) -> int:
-        return (self.not_valid_after - datetime.now(timezone.utc)).days
-
     class Meta:
         verbose_name_plural=_('certificates')
         verbose_name=_('certificate')

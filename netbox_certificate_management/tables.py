@@ -5,10 +5,20 @@ from django.utils.translation import gettext_lazy as _
 from netbox.tables import NetBoxTable, ColoredLabelColumn, ColorColumn, TemplateColumn, columns
 from .models import Certificate
 
+from django.conf import settings
+
+
+plugin_settings = settings.PLUGINS_CONFIG['netbox_certificate_management']
+
+#default parameter values if not provided in configuration.py
+WARNING_THRESHOLD = plugin_settings.get('WARNING_THRESHOLD', 30)
+CRITICAL_THRESHOLD = plugin_settings.get('CRITICAL_THRESHOLD', 14)
+
+
 VALID_DAYS_LEFT="""
-{% if record.valid_days_left < 0 %}
+{% if record.valid_days_left <= critical_threshold %}
     <span class="badge" style="background-color: red; color: white">{{record.valid_days_left}}</span>
-{% elif record.valid_days_left < 30 %}
+{% elif record.valid_days_left <= warning_threshold %}
     <span class="badge" style="background-color: orange; color: white">{{record.valid_days_left}}</span>
 {% else %}
     <span class="badge" style="background-color: green; color: white">{{record.valid_days_left}}</span>
@@ -59,6 +69,7 @@ class CertificateTable(NetBoxTable):
     )
     valid_days_left = TemplateColumn(
         template_code=VALID_DAYS_LEFT,
+        extra_context={'warning_threshold': WARNING_THRESHOLD, 'critical_threshold': CRITICAL_THRESHOLD},
         verbose_name=_('days_left')
     )
     issuer = TemplateColumn(

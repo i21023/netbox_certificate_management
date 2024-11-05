@@ -73,7 +73,9 @@ class CertificateView(generic.ObjectView):
 
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
-        children_table = CertificateTable(instance.certificates.all())
+        children_table = CertificateTable(instance.certificates.annotate(
+            valid_days_left=return_days_valid()
+        ))
 
         models.Certificate.objects.annotate(
             valid_days_left=return_days_valid()

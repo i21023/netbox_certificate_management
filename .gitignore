@@ -29,3 +29,6 @@ netbox.pid
 .coverage
 .vscode
 .python-version
+build/
+dist/
+netbox_certificate_management.egg-info/
