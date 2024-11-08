@@ -26,7 +26,7 @@ from utilities.exceptions import AbortRequest, PermissionsViolation
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
 from utilities.querydict import normalize_querydict, prepare_cloned_fields
-from extras.signals import clear_events
+from core.signals import clear_events
 import base64
 from django_tables2 import RequestConfig
 from django.db.models import Case, When, Value, IntegerField
