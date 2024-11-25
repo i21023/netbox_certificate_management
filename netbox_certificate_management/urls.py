@@ -8,6 +8,7 @@ urlpatterns=(
     path('certificates/<int:pk>/edit/', views.CertificateEditView.as_view(), name='certificate_edit'),
     path('certificates/<int:pk>/', views.CertificateView.as_view(), name='certificate_detail'),
     path('certificates/<int:pk>/delete/', views.CertificateDeleteView.as_view(), name='certificate_delete'),
+    path('certificates/delete/', views.CertificateBulkDeleteView.as_view(), name='certificate_bulk_delete'),
     path('certificates/<int:pk>/changelog/', ObjectChangeLogView.as_view(), name='certificate_changelog', kwargs={
         'model': models.Certificate
     }),

@@ -67,6 +67,10 @@ class URLFormView(FormView):
 
         return super().form_valid(form)
 
+class CertificateBulkDeleteView(generic.BulkDeleteView):
+    queryset = models.Certificate.objects.prefetch_related('tags')
+    filterset = filtersets.CertificateFilterSet
+    table = tables.CertificateTable
 
 class CertificateView(generic.ObjectView):
     queryset = models.Certificate.objects.all()
