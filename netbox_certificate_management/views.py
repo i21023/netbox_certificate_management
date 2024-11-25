@@ -41,12 +41,12 @@ from django.db.models import F, Q
 
 
 class URLFormView(FormView):
-    template_name = 'netbox_certificate_management/url_form.html'
+    template_name = "netbox_certificate_management/url_form.html"
     form_class = forms.URLForm
-    success_url = reverse_lazy('plugins:netbox_certificate_management:certificate_add')
+    success_url = reverse_lazy("plugins:netbox_certificate_management:certificate_add")
 
     def form_valid(self, form):
-        url = form.cleaned_data['url']
+        url = form.cleaned_data["url"]
 
         try:
             cert_data = fetch_https_certificate(url)
@@ -54,28 +54,30 @@ class URLFormView(FormView):
             messages.error(self.request, str(e))
             return super().form_invalid(form)
 
-        #parse the certificate
+        # parse the certificate
         try:
             parsed_cert_data, cert_b64 = parse_certificate(cert=cert_data)
         except Exception as e:
-            return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
+            return JsonResponse(
+                {"error": f"Error parsing certificate: {e}"}, status=400
+            )
 
-        self.request.session['parsed_certificate'] = parsed_cert_data
-        self.request.session['uploaded_file_binary'] = cert_b64
+        self.request.session["parsed_certificate"] = parsed_cert_data
+        self.request.session["uploaded_file_binary"] = cert_b64
 
         return super().form_valid(form)
 
+
 class CertificateView(generic.ObjectView):
-    queryset=models.Certificate.objects.all()
-    template_name='netbox_certificate_management/certificate.html'
+    queryset = models.Certificate.objects.all()
+    template_name = "netbox_certificate_management/certificate.html"
 
     def get_extra_context(self, request, instance):
-
         device_table = DeviceTable(instance.devices.all())
         vm_table = VirtualMachineTable(instance.virtual_machines.all())
-        children_table = CertificateTable(instance.certificates.annotate(
-            valid_days_left=return_days_valid()
-        ))
+        children_table = CertificateTable(
+            instance.certificates.annotate(valid_days_left=return_days_valid())
+        )
 
         models.Certificate.objects.annotate(
             valid_days_left=return_days_valid()
@@ -86,26 +88,27 @@ class CertificateView(generic.ObjectView):
         vm_table.configure(request)
 
         return {
-            'related_devices': device_table,
-            'related_vms': vm_table,
-            'children_certificates': children_table
+            "related_devices": device_table,
+            "related_vms": vm_table,
+            "children_certificates": children_table,
         }
 
+
 class CertificateListView(generic.ObjectListView):
-    queryset=models.Certificate.objects.annotate(
+    queryset = models.Certificate.objects.annotate(
         valid_days_left=return_days_valid()
     ).order_by("tree_id", "lft")
-    table=tables.CertificateTable
-    template_name='netbox_certificate_management/certificate_list.html'
-    filterset=filtersets.CertificateFilterSet
-    filterset_form=forms.CertificateFilterForm
+    table = tables.CertificateTable
+    template_name = "netbox_certificate_management/certificate_list.html"
+    filterset = filtersets.CertificateFilterSet
+    filterset_form = forms.CertificateFilterForm
 
 
 class CertificateEditView(generic.ObjectEditView):
     queryset = models.Certificate.objects.all()
     form = forms.CertificateForm
-    default_return_url = 'plugins:netbox_certificate_management:certificate_list'
-    template_name='netbox_certificate_management/certificate_edit.html'
+    default_return_url = "plugins:netbox_certificate_management:certificate_list"
+    template_name = "netbox_certificate_management/certificate_edit.html"
 
     def get(self, request, *args, **kwargs):
         """
@@ -116,16 +119,18 @@ class CertificateEditView(generic.ObjectEditView):
         model = self.queryset.model
 
         try:
-            passed_fields = request.session.pop('parsed_certificate')
-            parent = models.Certificate.objects.filter(subject=passed_fields['issuer_name']).first()
+            passed_fields = request.session.pop("parsed_certificate")
+            parent = models.Certificate.objects.filter(
+                subject=passed_fields["issuer_name"]
+            ).first()
 
-            issuer_reference=None
+            issuer_reference = None
 
             if parent:
                 issuer_reference = parent if parent.pk != obj.pk else None
 
             if issuer_reference:
-                passed_fields['issuer'] = issuer_reference
+                passed_fields["issuer"] = issuer_reference
         except KeyError:
             passed_fields = None
 
@@ -133,7 +138,7 @@ class CertificateEditView(generic.ObjectEditView):
         if passed_fields:
             initial_data.update(passed_fields)
         elif not obj:
-            return redirect('plugins:netbox_certificate_management:certificate_list')
+            return redirect("plugins:netbox_certificate_management:certificate_list")
 
         initial_data.update(normalize_querydict(request.GET))
         form = self.form(instance=obj, initial=initial_data)
@@ -141,21 +146,29 @@ class CertificateEditView(generic.ObjectEditView):
         if not obj:
             disable_pre_populated_fields(form, passed_fields)
 
-        form.fields['subject'].widget.attrs['readonly'] = 'disabled'
+        form.fields["subject"].widget.attrs["readonly"] = "disabled"
 
         if htmx_partial(request):
-            return render(request, self.htmx_template_name, {
-                'form': form,
-            })
+            return render(
+                request,
+                self.htmx_template_name,
+                {
+                    "form": form,
+                },
+            )
 
-        return render(request, self.template_name, {
-            'model': model,
-            'object': obj,
-            'form': form,
-            'return_url': self.get_return_url(request, obj),
-            'prerequisite_model': get_prerequisite_model(self.queryset),
-            **self.get_extra_context(request, obj),
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "model": model,
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                "prerequisite_model": get_prerequisite_model(self.queryset),
+                **self.get_extra_context(request, obj),
+            },
+        )
 
     def post(self, request, *args, **kwargs):
         """
@@ -164,11 +177,11 @@ class CertificateEditView(generic.ObjectEditView):
         Args:
             request: The current request
         """
-        logger = logging.getLogger('netbox.views.ObjectEditView')
+        logger = logging.getLogger("netbox.views.ObjectEditView")
         obj = self.get_object(**kwargs)
 
         # Take a snapshot for change logging (if editing an existing object)
-        if obj.pk and hasattr(obj, 'snapshot'):
+        if obj.pk and hasattr(obj, "snapshot"):
             obj.snapshot()
 
         obj = self.alter_object(obj, request, args, kwargs)
@@ -184,7 +197,7 @@ class CertificateEditView(generic.ObjectEditView):
                     object_created = form.instance.pk is None
                     obj = form.save(commit=False)
 
-                    file_base64 = request.session.pop('uploaded_file_binary', None)
+                    file_base64 = request.session.pop("uploaded_file_binary", None)
                     if file_base64:
                         file_binary = base64.b64decode(file_base64)
                         obj.file = file_binary
@@ -205,26 +218,28 @@ class CertificateEditView(generic.ObjectEditView):
                     except Exception as e:
                         print(e)
 
-                msg = '{} {}'.format(
-                    'Created' if object_created else 'Modified',
-                    self.queryset.model._meta.verbose_name
+                msg = "{} {}".format(
+                    "Created" if object_created else "Modified",
+                    self.queryset.model._meta.verbose_name,
                 )
                 logger.info(f"{msg} {obj} (PK: {obj.pk})")
-                if hasattr(obj, 'get_absolute_url'):
-                    msg = mark_safe(f'{msg} <a href="{obj.get_absolute_url()}">{escape(obj)}</a>')
+                if hasattr(obj, "get_absolute_url"):
+                    msg = mark_safe(
+                        f'{msg} <a href="{obj.get_absolute_url()}">{escape(obj)}</a>'
+                    )
                 else:
-                    msg = f'{msg} {obj}'
+                    msg = f"{msg} {obj}"
                 messages.success(request, msg)
 
-                if '_addanother' in request.POST:
+                if "_addanother" in request.POST:
                     redirect_url = request.path
 
                     # If cloning is supported, pre-populate a new instance of the form
                     params = prepare_cloned_fields(obj)
                     params.update(self.get_extra_addanother_params(request))
                     if params:
-                        if 'return_url' in request.GET:
-                            params['return_url'] = request.GET.get('return_url')
+                        if "return_url" in request.GET:
+                            params["return_url"] = request.GET.get("return_url")
                         redirect_url += f"?{params.urlencode()}"
 
                     return redirect(redirect_url)
@@ -242,12 +257,16 @@ class CertificateEditView(generic.ObjectEditView):
             logger.debug("Form validation failed")
             print(form.errors)
 
-        return render(request, self.template_name, {
-            'object': obj,
-            'form': form,
-            'return_url': self.get_return_url(request, obj),
-            **self.get_extra_context(request, obj),
-        })
+        return render(
+            request,
+            self.template_name,
+            {
+                "object": obj,
+                "form": form,
+                "return_url": self.get_return_url(request, obj),
+                **self.get_extra_context(request, obj),
+            },
+        )
 
     def update_certificates_issuer(self, current_certificate) -> bool:
         """
@@ -261,10 +280,7 @@ class CertificateEditView(generic.ObjectEditView):
         certificates_to_update = Certificate.objects.filter(
             issuer_name=current_certificate.subject,
             issuer__isnull=True,
-        ).exclude(
-            is_root=True
-        )
-
+        ).exclude(is_root=True)
 
         if certificates_to_update.exists():
             for certificate in certificates_to_update:
@@ -277,52 +293,62 @@ class CertificateEditView(generic.ObjectEditView):
 
 def disable_pre_populated_fields(form, passed_fields):
     for field in passed_fields:
-        form.fields[field].widget.attrs['readonly'] = True
-
+        form.fields[field].widget.attrs["readonly"] = True
 
 
 class CertificateDeleteView(generic.ObjectDeleteView):
-    queryset=models.Certificate.objects.all()
+    queryset = models.Certificate.objects.all()
 
 
 @require_POST
 def upload_file(request):
-    file = request.FILES.get('file')
-    password = request.POST.get('password')
+    file = request.FILES.get("file")
+    password = request.POST.get("password")
 
-    pk_id = request.GET.get('pk_id')
+    pk_id = request.GET.get("pk_id")
 
     if not file:
-        messages.error(request, 'No file uploaded')
-        return JsonResponse({'error': 'No file uploaded'}, status=400)
+        messages.error(request, "No file uploaded")
+        return JsonResponse({"error": "No file uploaded"}, status=400)
 
-    #the filename needs to be checked again here because there is no way to check if the password send by ajax was 'null' or null (not provided, i.e. no pkcs12 format)
-    if not file.name.endswith('.p12') and not file.name.endswith('.pfx'):
+    # the filename needs to be checked again here because there is no way to check if the password send by ajax was 'null' or null (not provided, i.e. no pkcs12 format)
+    if not file.name.endswith(".p12") and not file.name.endswith(".pfx"):
         password = None
 
-    #handle other cert file formats (pem, der)
+    # handle other cert file formats (pem, der)
     try:
-        parsed_cert_data, cert_b64 = parse_certificate(cert=file.read(), password=password)
+        parsed_cert_data, cert_b64 = parse_certificate(
+            cert=file.read(), password=password
+        )
     except Exception as e:
-        return JsonResponse({'error': f'Error parsing certificate: {e}'}, status=400)
+        return JsonResponse({"error": f"Error parsing certificate: {e}"}, status=400)
 
     # Process the file and password as needed
     # Save file data to session or database, etc.
-    request.session['parsed_certificate'] = parsed_cert_data
-    request.session['uploaded_file_binary'] = cert_b64
+    request.session["parsed_certificate"] = parsed_cert_data
+    request.session["uploaded_file_binary"] = cert_b64
 
     # upload new file
     if pk_id == "-1":
-        redirect_url = reverse('plugins:netbox_certificate_management:certificate_add') 
-    else: #update existing file
+        redirect_url = reverse("plugins:netbox_certificate_management:certificate_add")
+    else:  # update existing file
         element = models.Certificate.objects.get(pk=pk_id)
-        if element.subject != parsed_cert_data.get('subject') or element.issuer_name != parsed_cert_data.get('issuer_name'):
-            return JsonResponse({'error': 'The Subject of the uploaded Certificate does not match the current one'}, status=400)
-        #if element.serial_number == parsed_cert_data.get('serial_number'):
+        if element.subject != parsed_cert_data.get(
+            "subject"
+        ) or element.issuer_name != parsed_cert_data.get("issuer_name"):
+            return JsonResponse(
+                {
+                    "error": "The Subject of the uploaded Certificate does not match the current one"
+                },
+                status=400,
+            )
+        # if element.serial_number == parsed_cert_data.get('serial_number'):
         #    return JsonResponse({'error': 'The two certificates have the same serial number, no update needed'}, status=400)
-        redirect_url = reverse('plugins:netbox_certificate_management:certificate_edit', args=[pk_id])
+        redirect_url = reverse(
+            "plugins:netbox_certificate_management:certificate_edit", args=[pk_id]
+        )
 
-    return JsonResponse({'redirect': redirect_url})
+    return JsonResponse({"redirect": redirect_url})
 
 
 def download_file(request, pk):
@@ -330,67 +356,68 @@ def download_file(request, pk):
     obj = get_object_or_404(models.Certificate, pk=pk)
 
     # Check if the user wants to convert the file to DER format
-    convert_to_der = request.GET.get('convert_to_der', 'False') == 'True'
+    convert_to_der = request.GET.get("convert_to_der", "False") == "True"
 
     # Ensure there is a file to download
     if obj.file:
-        #if user wants to download in DER format, convert the file to DER
+        # if user wants to download in DER format, convert the file to DER
         if convert_to_der:
-            response = HttpResponse(convert_pem_to_der(obj.file), content_type='application/x-x509-ca-cert')
-            response['Content-Disposition'] = f'attachment; filename="{obj.subject}.der"'
+            response = HttpResponse(
+                convert_pem_to_der(obj.file), content_type="application/x-x509-ca-cert"
+            )
+            response["Content-Disposition"] = (
+                f'attachment; filename="{obj.subject}.der"'
+            )
             return response
-        response = HttpResponse(obj.file, content_type='application/x-pem-file')
-        response['Content-Disposition'] = f'attachment; filename="{obj.subject}.pem"'
+        response = HttpResponse(obj.file, content_type="application/x-pem-file")
+        response["Content-Disposition"] = f'attachment; filename="{obj.subject}.pem"'
         return response
     else:
         return HttpResponse("No file found", status=404)
 
 
-@register_model_view(Device, name='certificates')
+@register_model_view(Device, name="certificates")
 class DeviceCertificatesView(generic.ObjectChildrenView):
-    queryset = Device.objects.all().prefetch_related('certificates')
-    child_model=models.Certificate
-    table=tables.CertificateTable
-    template_name='netbox_certificate_management/certificates_tab.html'
-    hide_if_empty=True
-    tab = ViewTab(
-        label=_('certificates'),
-        badge=lambda obj: obj.certificates.count(),
-        permission='dcim.view_device',
-        hide_if_empty=True
-    )
-
-    def get_children(self, request, parent):
-        return parent.certificates.annotate(
-            valid_days_left=return_days_valid()
-        )
-    
-
-@register_model_view(VirtualMachine, name='certificates')
-class DeviceCertificatesView(generic.ObjectChildrenView):
-    queryset = VirtualMachine.objects.all().prefetch_related('certificates')
-    child_model=models.Certificate
-    table=tables.CertificateTable
-    template_name='netbox_certificate_management/certificates_tab.html'
-    hide_if_empty=True
-    tab = ViewTab(
-        label=_('certificates'),
-        badge=lambda obj: obj.certificates.count(),
-        permission='virtualization.view_virtualmachine',
-        hide_if_empty=True
-    )
-
-    def get_children(self, request, parent):
-        return parent.certificates.annotate(
-            valid_days_left=return_days_valid()
-        )
-
-@register_model_view(Certificate, name='extensions')
-class CertificateExtensionsTabView(generic.ObjectView):
-    queryset = models.Certificate.objects.all()
-    template_name = 'netbox_certificate_management/certificate_extensions.html'
+    queryset = Device.objects.all().prefetch_related("certificates")
+    child_model = models.Certificate
+    table = tables.CertificateTable
+    template_name = "netbox_certificate_management/certificates_tab.html"
     hide_if_empty = True
     tab = ViewTab(
-        label='Extensions',
+        label=_("certificates"),
+        badge=lambda obj: obj.certificates.count(),
+        permission="dcim.view_device",
+        hide_if_empty=True,
+    )
+
+    def get_children(self, request, parent):
+        return parent.certificates.annotate(valid_days_left=return_days_valid())
+
+
+@register_model_view(VirtualMachine, name="certificates")
+class DeviceCertificatesView(generic.ObjectChildrenView):
+    queryset = VirtualMachine.objects.all().prefetch_related("certificates")
+    child_model = models.Certificate
+    table = tables.CertificateTable
+    template_name = "netbox_certificate_management/certificates_tab.html"
+    hide_if_empty = True
+    tab = ViewTab(
+        label=_("certificates"),
+        badge=lambda obj: obj.certificates.count(),
+        permission="virtualization.view_virtualmachine",
+        hide_if_empty=True,
+    )
+
+    def get_children(self, request, parent):
+        return parent.certificates.annotate(valid_days_left=return_days_valid())
+
+
+@register_model_view(Certificate, name="extensions")
+class CertificateExtensionsTabView(generic.ObjectView):
+    queryset = models.Certificate.objects.all()
+    template_name = "netbox_certificate_management/certificate_extensions.html"
+    hide_if_empty = True
+    tab = ViewTab(
+        label="Extensions",
         hide_if_empty=True,
     )
