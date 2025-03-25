@@ -1,20 +1,14 @@
 from unicodedata import decimal
 
 from django.db import models
-from mptt.managers import TreeManager
-from netbox.models import NetBoxModel
+from utilities.mptt import TreeManager
+from netbox.models import NetBoxFeatureSet
 from django.urls import reverse
-import django.contrib.postgres.fields as pg_fields
 from django.db.models import JSONField, F, ForeignKey, UniqueConstraint
-from utilities.choices import ChoiceSet
-from cryptography.x509 import NameOID, Name, NameAttribute
-from cryptography.x509.oid import ObjectIdentifier
-from django.core.exceptions import ValidationError
 from mptt.models import TreeForeignKey, MPTTModel
 from django.utils.translation import gettext_lazy as _
-from datetime import datetime, timezone
 
-class Certificate(NetBoxModel, MPTTModel):
+class Certificate(NetBoxFeatureSet, MPTTModel):
     """
     Represents a x509 v3 certificate
     """
@@ -33,6 +27,8 @@ class Certificate(NetBoxModel, MPTTModel):
     comments=models.TextField(blank=True)
     file=models.BinaryField()
     is_root=models.BooleanField(default=False)
+
+    objects = TreeManager()
 
     def get_absolute_url(self):
         return reverse('plugins:netbox_certificate_management:certificate_detail', args=[self.pk])
