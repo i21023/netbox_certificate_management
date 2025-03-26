@@ -28,8 +28,6 @@ from django.utils.html import escape
 from utilities.querydict import normalize_querydict, prepare_cloned_fields
 from core.signals import clear_events
 import base64
-from django_tables2 import RequestConfig
-from django.db.models import Case, When, Value, IntegerField
 from django.views.generic.edit import FormView
 from dcim.models import Device
 from virtualization.models import VirtualMachine
@@ -37,7 +35,6 @@ from utilities.views import register_model_view, ViewTab
 from django.utils.translation import gettext_lazy as _
 from . import filtersets
 from .models import Certificate
-from django.db.models import F, Q
 
 
 class URLFormView(FormView):

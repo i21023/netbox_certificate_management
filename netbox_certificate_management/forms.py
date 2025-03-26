@@ -62,4 +62,4 @@ class CertificateFilterForm(NetBoxModelFilterSetForm):
 
 
 class URLForm(forms.Form):
-    url = forms.URLField(label='URL', required=True)
+    url = forms.URLField(label='URL', required=True, initial="https://")
