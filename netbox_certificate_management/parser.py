@@ -1,7 +1,7 @@
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import pkcs12, pkcs7
+from cryptography.hazmat.primitives.serialization import pkcs12 
 import base64
 import socket
 import ssl
@@ -17,6 +17,15 @@ GENERAL_NAME_MAPPING = {
 }
 
 def parse_san_extension(extensions) -> list[dict] | None:
+    """
+    Parses the Subject Alternative Name (SAN) extension from the certificate extensions.
+
+    Args:
+        extensions (x509.Extensions): The extensions of the certificate.
+
+    Returns:
+        list[dict] | None: A list of dictionaries containing the SANs or None if the extension is not found.
+    """
     try:
         san_extension = extensions.get_extension_for_class(x509.SubjectAlternativeName)
         sans = []
@@ -30,6 +39,15 @@ def parse_san_extension(extensions) -> list[dict] | None:
         return None
 
 def parse_basic_constraints_extension(extensions) -> dict | None:
+    """
+    Parses the Basic Constraints extension from the certificate extensions.
+
+    Args:
+        extensions (x509.Extensions): The extensions of the certificate.
+
+    Returns:
+        dict | None: A dictionary containing the basic constraints or None if the extension is not found.
+    """
     try:
         basic_constraints_extension = extensions.get_extension_for_class(x509.BasicConstraints)
         return {
@@ -40,6 +58,15 @@ def parse_basic_constraints_extension(extensions) -> dict | None:
         return None
 
 def parse_key_usage_extension(extensions) -> dict | None:
+    """
+    Parses the Key Usage extension from the certificate extensions.
+
+    Args:
+        extensions (x509.Extensions): The extensions of the certificate.
+
+    Returns:
+        dict | None: A dictionary containing the key usage or None if the extension is not found.
+    """
     try:
         key_usage_extension = extensions.get_extension_for_class(x509.KeyUsage)
         return {
@@ -55,6 +82,15 @@ def parse_key_usage_extension(extensions) -> dict | None:
         return None
 
 def parse_extended_key_usage_extension(extensions) -> list | None:
+    """
+    Parses the Extended Key Usage extension from the certificate extensions.
+
+    Args:
+        extensions (x509.Extensions): The extensions of the certificate.
+
+    Returns:
+        list | None: A list of extended key usages or None if the extension is not found.
+    """
     try:
         extended_key_usage_extension = extensions.get_extension_for_class(x509.ExtendedKeyUsage)
         extended_keys = []
@@ -65,6 +101,15 @@ def parse_extended_key_usage_extension(extensions) -> list | None:
         return None
 
 def parse_crl_distribution_points_extension(extensions) -> list[dict] | None:
+    """
+    Parses the CRL Distribution Points extension from the certificate extensions.
+
+    Args:
+        extensions (x509.Extensions): The extensions of the certificate.
+
+    Returns:
+        list[dict] | None: A list of dictionaries containing the CRL distribution points or None if the extension is not found.
+    """
     try:
         crl_dist_points_extension = extensions.get_extension_for_class(x509.CRLDistributionPoints)
         crl_dist_points = []
@@ -77,10 +122,17 @@ def parse_crl_distribution_points_extension(extensions) -> list[dict] | None:
     except x509.ExtensionNotFound:
         return None
 
-def parse_certificate(cert: bytes, password: str = None) -> (dict, str):
+def parse_certificate(cert: bytes, password: str = None) -> tuple[dict, str]:
     """
     Takes in a certificate in any format (PEM, DER, PKCS#12, PKCS#7) and returns a tuple with the parsed
     certificate data and the certificate in PEM format.
+
+    Args:
+        cert (bytes): The certificate data in binary format.
+        password (str, optional): The password for PKCS#12 certificates. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing the parsed certificate data as a dictionary and the certificate in PEM format as a string.
     """
     if password is not None:
         pem_cert_bytes = convert_pkcs12_to_pem(cert, password)
@@ -122,6 +174,12 @@ def detect_certificate_format_and_convert_to_pem(cert_data: bytes) -> bytes:
     """
     Takes in a certificate in any format (PEM, DER, PKCS#12, PKCS#7) in binary and returns the certificate in PEM format.
     Raises a ValueError if the certificate format is not supported.
+
+    Args:
+        cert_data (bytes): The certificate data in binary format.
+
+    Returns:
+        bytes: The certificate in PEM format.
     """
 
     # Try to load as PEM
@@ -145,12 +203,25 @@ def detect_certificate_format_and_convert_to_pem(cert_data: bytes) -> bytes:
 def convert_pem_to_der(pem_cert: bytes) -> bytes:
     """
     Takes in a certificate in PEM format and returns the certificate in DER format.
+
+    Args:
+        pem_cert (bytes): The certificate in PEM format.
+
+    Returns:
+        bytes: The certificate in DER format.
     """
     return x509.load_pem_x509_certificate(pem_cert, default_backend()).public_bytes(encoding=serialization.Encoding.DER)
 
 def convert_pkcs12_to_pem(cert_data: bytes, password: str) -> bytes:
     """
     Takes in a PKCS#12 certificate and key in binary and returns the certificate in PEM format.
+
+    Args:
+        cert_data (bytes): The PKCS#12 certificate data in binary format.
+        password (str): The password for the PKCS#12 certificate.
+
+    Returns:
+        bytes: The certificate in PEM format.
     """
     try:
         print(password)
@@ -161,12 +232,24 @@ def convert_pkcs12_to_pem(cert_data: bytes, password: str) -> bytes:
 
 
 def fetch_https_certificate(url: str) -> bytes:
+    """
+    Fetches the SSL certificate from the given URL.
+
+    Args:
+        url (str): The URL to fetch the certificate from.
+
+    Returns:
+        bytes: The certificate in binary format.
+
+    Raises:
+        ValueError: If there is an error fetching the certificate.
+    """
     try:
         url=url.split('://')[1]
         context = ssl.create_default_context()
         with socket.create_connection((url, 443)) as sock:
             with context.wrap_socket(sock, server_hostname=url) as ssock:
-                certs = ssock.getpeercert(binary_form=True)
-                return certs
+                cert = ssock.getpeercert(binary_form=True)
+                return cert
     except Exception as e:
         raise ValueError(f'Error fetching certificate: {e}')

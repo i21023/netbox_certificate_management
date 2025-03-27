@@ -1,11 +1,8 @@
 import django_tables2 as tables
 from django_tables2.utils import Accessor
 from django.utils.translation import gettext_lazy as _
-
 from netbox.tables import (
     NetBoxTable,
-    ColoredLabelColumn,
-    ColorColumn,
     TemplateColumn,
     columns,
 )

@@ -34,13 +34,3 @@ class CertificateSerializer(NetBoxModelSerializer):
             "created",
             "last_updated",
         )
-
-    # def to_representation(self, instance):
-    #     """Convert the binary file field to Base64 encoded string."""
-    #     representation = super().to_representation(instance)
-    #     # Convert the 'file' binary field to a base64 string
-    #     if instance.file:
-    #         representation['certificate_pem'] = base64.b64encode(instance.file).decode('utf-8')
-    #     else:
-    #         representation['certificate_pem'] = None
-    #     return representation

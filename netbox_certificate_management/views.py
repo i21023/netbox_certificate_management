@@ -1,14 +1,9 @@
-import json
-from types import NoneType
-
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from netbox.views import generic
 from dcim.tables import DeviceTable
 from rest_framework.reverse import reverse_lazy
 from virtualization.tables import VirtualMachineTable
-from openid.fetchers import fetch
-
 from . import forms, models, tables
 from .tables import CertificateTable
 from .utils import return_days_valid
@@ -38,6 +33,14 @@ from .models import Certificate
 
 
 class URLFormView(FormView):
+    """
+    View for handling URL form submissions to fetch and parse HTTPS certificates.
+
+    Attributes:
+        template_name (str): The template to render for the form.
+        form_class (forms.URLForm): The form class to use.
+        success_url (str): The URL to redirect to upon successful form submission.
+    """
     template_name = "netbox_certificate_management/url_form.html"
     form_class = forms.URLForm
     success_url = reverse_lazy("plugins:netbox_certificate_management:certificate_add")
@@ -65,11 +68,26 @@ class URLFormView(FormView):
         return super().form_valid(form)
 
 class CertificateBulkDeleteView(generic.BulkDeleteView):
+    """
+    View for handling bulk deletion of certificates.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to delete.
+        filterset (CertificateFilterSet): The filterset to use for filtering certificates.
+        table (CertificateTable): The table to display the certificates.
+    """
     queryset = models.Certificate.objects.prefetch_related('tags')
     filterset = filtersets.CertificateFilterSet
     table = tables.CertificateTable
 
 class CertificateView(generic.ObjectView):
+    """
+    View for displaying a single certificate.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to display.
+        template_name (str): The template to render for the certificate view.
+    """
     queryset = models.Certificate.objects.all()
     template_name = "netbox_certificate_management/certificate.html"
 
@@ -79,10 +97,6 @@ class CertificateView(generic.ObjectView):
         children_table = CertificateTable(
             instance.certificates.annotate(valid_days_left=return_days_valid())
         )
-
-        models.Certificate.objects.annotate(
-            valid_days_left=return_days_valid()
-        ).order_by("tree_id", "lft")
 
         children_table.configure(request)
         device_table.configure(request)
@@ -96,6 +110,16 @@ class CertificateView(generic.ObjectView):
 
 
 class CertificateListView(generic.ObjectListView):
+    """
+    View for displaying a list of certificates.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to display.
+        table (CertificateTable): The table to display the certificates.
+        template_name (str): The template to render for the certificate list view.
+        filterset (CertificateFilterSet): The filterset to use for filtering certificates.
+        filterset_form (CertificateFilterForm): The form to use for filtering certificates.
+    """
     queryset = models.Certificate.objects.annotate(
         valid_days_left=return_days_valid()
     ).order_by("tree_id", "lft")
@@ -106,6 +130,15 @@ class CertificateListView(generic.ObjectListView):
 
 
 class CertificateEditView(generic.ObjectEditView):
+    """
+    View for editing a certificate.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to edit.
+        form (CertificateForm): The form to use for editing certificates.
+        default_return_url (str): The default URL to return to after editing.
+        template_name (str): The template to render for the certificate edit view.
+    """
     queryset = models.Certificate.objects.all()
     form = forms.CertificateForm
     default_return_url = "plugins:netbox_certificate_management:certificate_list"
@@ -293,16 +326,38 @@ class CertificateEditView(generic.ObjectEditView):
 
 
 def disable_pre_populated_fields(form, passed_fields):
+    """
+    Disables pre-populated fields in the form by setting them to read-only.
+
+    Args:
+        form (Form): The form instance.
+        passed_fields (dict): The fields to disable.
+    """
     for field in passed_fields:
         form.fields[field].widget.attrs["readonly"] = True
 
 
 class CertificateDeleteView(generic.ObjectDeleteView):
+    """
+    View for handling the deletion of a certificate.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to delete.
+    """
     queryset = models.Certificate.objects.all()
 
 
 @require_POST
 def upload_file(request):
+    """
+    Handles the file upload for certificates.
+
+    Args:
+        request (HttpRequest): The current request.
+
+    Returns:
+        JsonResponse: The response indicating success or failure.
+    """
     file = request.FILES.get("file")
     password = request.POST.get("password")
 
@@ -353,6 +408,16 @@ def upload_file(request):
 
 
 def download_file(request, pk):
+    """
+    Handles the file download for certificates.
+
+    Args:
+        request (HttpRequest): The current request.
+        pk (int): The primary key of the certificate to download.
+
+    Returns:
+        HttpResponse: The response containing the file or an error message.
+    """
     # Get the object by primary key (or however you identify it)
     obj = get_object_or_404(models.Certificate, pk=pk)
 
@@ -379,6 +444,17 @@ def download_file(request, pk):
 
 @register_model_view(Device, name="certificates")
 class DeviceCertificatesView(generic.ObjectChildrenView):
+    """
+    View for displaying certificates related to a device.
+
+    Attributes:
+        queryset (QuerySet): The queryset of devices to display.
+        child_model (Model): The child model (Certificate) to display.
+        table (Table): The table to display the certificates.
+        template_name (str): The template to render for the certificates tab.
+        hide_if_empty (bool): Whether to hide the tab if there are no certificates.
+        tab (ViewTab): The tab configuration.
+    """
     queryset = Device.objects.all().prefetch_related("certificates")
     child_model = models.Certificate
     table = tables.CertificateTable
@@ -397,6 +473,17 @@ class DeviceCertificatesView(generic.ObjectChildrenView):
 
 @register_model_view(VirtualMachine, name="certificates")
 class DeviceCertificatesView(generic.ObjectChildrenView):
+    """
+    View for displaying certificates related to a virtual machine.
+
+    Attributes:
+        queryset (QuerySet): The queryset of virtual machines to display.
+        child_model (Model): The child model (Certificate) to display.
+        table (Table): The table to display the certificates.
+        template_name (str): The template to render for the certificates tab.
+        hide_if_empty (bool): Whether to hide the tab if there are no certificates.
+        tab (ViewTab): The tab configuration.
+    """
     queryset = VirtualMachine.objects.all().prefetch_related("certificates")
     child_model = models.Certificate
     table = tables.CertificateTable
@@ -415,6 +502,15 @@ class DeviceCertificatesView(generic.ObjectChildrenView):
 
 @register_model_view(Certificate, name="extensions")
 class CertificateExtensionsTabView(generic.ObjectView):
+    """
+    View for displaying the extensions of a certificate.
+
+    Attributes:
+        queryset (QuerySet): The queryset of certificates to display.
+        template_name (str): The template to render for the certificate extensions tab.
+        hide_if_empty (bool): Whether to hide the tab if there are no extensions.
+        tab (ViewTab): The tab configuration.
+    """
     queryset = models.Certificate.objects.all()
     template_name = "netbox_certificate_management/certificate_extensions.html"
     hide_if_empty = True

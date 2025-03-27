@@ -1,10 +1,8 @@
-from unicodedata import decimal
-
 from django.db import models
 from utilities.mptt import TreeManager
 from netbox.models import NetBoxFeatureSet
 from django.urls import reverse
-from django.db.models import JSONField, F, ForeignKey, UniqueConstraint
+from django.db.models import JSONField, UniqueConstraint
 from mptt.models import TreeForeignKey, MPTTModel
 from django.utils.translation import gettext_lazy as _
 
@@ -28,6 +26,7 @@ class Certificate(NetBoxFeatureSet, MPTTModel):
     file=models.BinaryField()
     is_root=models.BooleanField(default=False)
 
+    # this is necessary for netbox >= 4.2.6 to ensure the hierarchy ordering is working correctly https://github.com/netbox-community/netbox/pull/18867
     objects = TreeManager()
 
     def get_absolute_url(self):
