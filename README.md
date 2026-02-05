@@ -27,6 +27,20 @@ The following features are available:
 - See if a certificate is about to expire
 - REST and GraphQL API support
 
+# Installation
+
+1. Clone this repository
+1. Activate the venv of your netbox instance e.g. `source /opt/netbox/venv/bin/activate` 
+1. Run `pip install .`
+1. Add the plugin to your configuration.yaml 
+```
+PLUGINS = [
+    'netbox_certificate_management',
+]
+1. `python migrate.py migrate`
+1. Restart your server
+```
+
 
 [^1]: supported formats are: PEM, Binary, PKCS#12 
 
