@@ -38,8 +38,8 @@ PLUGINS = [
     'netbox_certificate_management',
 ]
 ```
-1. `python migrate.py migrate`
-1. Restart your server
+5. `python migrate.py migrate`
+6. Restart your server
 
 
 [^1]: supported formats are: PEM, Binary, PKCS#12 
